@@ -35,7 +35,14 @@ export default function App() {
   const [apiKeyConfig, setApiKeyConfig] = useState(() => {
     try {
       const saved = localStorage.getItem('text2insight_llm_config') || localStorage.getItem('queryblue_llm_config');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.provider === 'qwen') {
+          parsed.provider = 'smart-local';
+          parsed.hasKey = false;
+        }
+        return parsed;
+      }
     } catch (e) {
       // Ignore
     }

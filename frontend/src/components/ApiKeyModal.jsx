@@ -8,7 +8,7 @@ export default function ApiKeyModal({
   onSaveConfig
 }) {
   const [provider, setProvider] = useState(() => {
-    if (apiKeyConfig.provider === 'openai') return 'groq';
+    if (apiKeyConfig.provider === 'openai' || apiKeyConfig.provider === 'qwen') return 'groq';
     return apiKeyConfig.provider || 'gemini';
   });
   
@@ -21,9 +21,6 @@ export default function ApiKeyModal({
     if (apiKeyConfig.modelName === 'gemini-2.5-flash') {
       return 'gemini-3.8-flash';
     }
-    if (apiKeyConfig.modelName === 'qwen-2.5-coder-32b' || apiKeyConfig.modelName === 'qwen-2.5-32b') {
-      return 'qwen/qwen3.8-27b';
-    }
     return apiKeyConfig.modelName || 'gemini-3.8-flash';
   });
 
@@ -33,32 +30,21 @@ export default function ApiKeyModal({
 
   if (!isOpen) return null;
 
-  const getDefaultModel = (prov, currentKey = apiKey) => {
+  const getDefaultModel = (prov) => {
     if (prov === 'gemini') return 'gemini-3.8-flash';
     if (prov === 'groq') return 'openai/gpt-oss-120b';
-    if (prov === 'qwen') {
-      return currentKey.trim().startsWith('gsk_') ? 'qwen/qwen3.8-27b' : 'qwen-2.5-coder-32b-instruct';
-    }
     if (prov === 'local_ollama') return 'text2insight-qwen';
     return 'gemini-3.8-flash';
   };
 
   const handleSelectProvider = (prov) => {
     setProvider(prov);
-    setModelName(getDefaultModel(prov, apiKey));
+    setModelName(getDefaultModel(prov));
     setOllamaStatus(null);
   };
 
   const handleApiKeyChange = (val) => {
     setApiKey(val);
-    if (provider === 'qwen') {
-      if (val.trim().startsWith('gsk_')) {
-        // Auto-switch to Groq Qwen model if Groq key is pasted
-        setModelName('qwen/qwen3.8-27b');
-      } else if (val.trim().startsWith('sk-') && modelName === 'qwen/qwen3.8-27b') {
-        setModelName('qwen-2.5-coder-32b-instruct');
-      }
-    }
   };
 
   const handleTestOllamaConnection = async () => {
@@ -106,8 +92,6 @@ export default function ApiKeyModal({
     onClose();
   };
 
-  const isGroqQwenKey = provider === 'qwen' && apiKey.trim().startsWith('gsk_');
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D47A1]/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl border border-[#D2E3FC] max-w-lg w-full overflow-hidden max-h-[92vh] flex flex-col">
@@ -120,7 +104,7 @@ export default function ApiKeyModal({
             </div>
             <div>
               <h2 className="text-sm font-bold text-[#1E293B]">LLM Engine Settings</h2>
-              <p className="text-[11px] text-[#5F6368]">Configure Cloud (Gemini, Groq, Qwen) or Offline Local Qwen</p>
+              <p className="text-[11px] text-[#5F6368]">Configure Cloud (Gemini, Groq) or Offline Local Qwen</p>
             </div>
           </div>
           <button
@@ -145,10 +129,10 @@ export default function ApiKeyModal({
             </div>
           </div>
 
-          {/* Provider Selection (4 Cards) */}
+          {/* Provider Selection (3 Cards) */}
           <div>
             <label className="block text-xs font-semibold text-[#1E293B] mb-1.5">Select LLM Provider</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               
               {/* Card 1: Gemini */}
               <button
@@ -184,24 +168,7 @@ export default function ApiKeyModal({
                 <span className="text-[10px] text-[#5F6368] mt-1 truncate">gpt-oss-120b</span>
               </button>
 
-              {/* Card 3: Qwen Cloud */}
-              <button
-                type="button"
-                onClick={() => handleSelectProvider('qwen')}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                  provider === 'qwen'
-                    ? 'border-[#1A73E8] bg-[#E8F0FE] ring-1 ring-[#1A73E8]'
-                    : 'border-[#CBD5E1] hover:border-[#1A73E8]'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#1E293B]">Qwen Cloud</span>
-                  <Code2 className="w-3.5 h-3.5 text-[#1A73E8]" />
-                </div>
-                <span className="text-[10px] text-[#5F6368] mt-1 truncate">DashScope/Groq</span>
-              </button>
-
-              {/* Card 4: Local Qwen (Ollama) */}
+              {/* Card 3: Local Qwen (Ollama) */}
               <button
                 type="button"
                 onClick={() => handleSelectProvider('local_ollama')}
@@ -332,37 +299,15 @@ export default function ApiKeyModal({
               {/* API Key Input */}
               <div>
                 <label className="block text-xs font-semibold text-[#1E293B] mb-1">
-                  {provider === 'gemini'
-                    ? 'Google Gemini API Key'
-                    : (provider === 'groq'
-                      ? 'Groq API Key'
-                      : 'Qwen Cloud API Key')}
+                  {provider === 'gemini' ? 'Google Gemini API Key' : 'Groq API Key'}
                 </label>
                 <input
                   type="password"
                   value={apiKey}
                   onChange={(e) => handleApiKeyChange(e.target.value)}
                   className="w-full px-3 py-2 border border-[#CBD5E1] rounded-lg text-xs font-mono focus:outline-hidden focus:border-[#1A73E8] focus:ring-1 focus:ring-[#1A73E8]"
-                  placeholder={
-                    provider === 'gemini'
-                      ? 'AIzaSy...'
-                      : (provider === 'groq' ? 'gsk_...' : (isGroqQwenKey ? 'gsk_...' : 'sk-... or gsk_...'))
-                  }
+                  placeholder={provider === 'gemini' ? 'AIzaSy...' : 'gsk_...'}
                 />
-                
-                {provider === 'qwen' && (
-                  <p className="text-[10px] text-[#5F6368] mt-1">
-                    {isGroqQwenKey ? (
-                      <span className="text-[#1A73E8] font-semibold">
-                        ⚡ Groq Key detected: Automatically routed to Groq LPU with model <code className="bg-gray-100 px-1 rounded">qwen/qwen3.8-27b</code>.
-                      </span>
-                    ) : (
-                      <span>
-                        Enter your Alibaba DashScope key (<code className="bg-gray-100 px-1 rounded">sk-...</code>) or Groq key (<code className="bg-gray-100 px-1 rounded">gsk_...</code>).
-                      </span>
-                    )}
-                  </p>
-                )}
               </div>
 
               {/* Model Name Input & Options */}
@@ -378,7 +323,7 @@ export default function ApiKeyModal({
                   value={modelName}
                   onChange={(e) => setModelName(e.target.value)}
                   className="w-full px-3 py-2 border border-[#CBD5E1] rounded-lg text-xs font-mono focus:outline-hidden focus:border-[#1A73E8] focus:ring-1 focus:ring-[#1A73E8]"
-                  placeholder={getDefaultModel(provider, apiKey)}
+                  placeholder={getDefaultModel(provider)}
                 />
 
                 {/* Quick Model Options */}
@@ -447,56 +392,6 @@ export default function ApiKeyModal({
                       >
                         openai/gpt-oss-20b
                       </button>
-                    </>
-                  )}
-
-                  {provider === 'qwen' && (
-                    <>
-                      {isGroqQwenKey ? (
-                        <button
-                          type="button"
-                          onClick={() => setModelName('qwen/qwen3.8-27b')}
-                          className="text-[10px] px-2 py-0.5 rounded border bg-[#1A73E8] text-white border-[#1A73E8]"
-                        >
-                          qwen/qwen3.8-27b (Groq Verified)
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => setModelName('qwen-2.5-coder-32b-instruct')}
-                            className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
-                              modelName === 'qwen-2.5-coder-32b-instruct'
-                                ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
-                                : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
-                            }`}
-                          >
-                            qwen-2.5-coder-32b-instruct
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setModelName('qwen-plus')}
-                            className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
-                              modelName === 'qwen-plus'
-                                ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
-                                : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
-                            }`}
-                          >
-                            qwen-plus
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setModelName('qwen-turbo')}
-                            className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
-                              modelName === 'qwen-turbo'
-                                ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
-                                : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
-                            }`}
-                          >
-                            qwen-turbo
-                          </button>
-                        </>
-                      )}
                     </>
                   )}
                 </div>

@@ -302,60 +302,6 @@ def generate_with_groq(
         raise RuntimeError(f"Groq API Connection Error ({chosen_model}): {str(e)}")
 
 
-def generate_with_qwen(
-    question: str,
-    df: pd.DataFrame,
-    mode: str,
-    api_key: str,
-    model_name: Optional[str] = None
-) -> Tuple[str, str, str]:
-    """Generates SQL or Pandas code using Qwen Cloud (DashScope or Groq Qwen)."""
-    is_groq_key = api_key.startswith("gsk_")
-
-    if is_groq_key:
-        endpoint = "https://api.groq.com/openai/v1/chat/completions"
-        # Always route Groq Qwen to qwen/qwen3.8-27b (never send qwen-2.5-coder-32b-instruct to Groq)
-        chosen_model = "qwen/qwen3.8-27b"
-        provider_label = "Qwen via Groq"
-    else:
-        endpoint = os.getenv("QWEN_BASE_URL") or "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
-        chosen_model = model_name or "qwen-2.5-coder-32b-instruct"
-        provider_label = "Qwen DashScope"
-
-    prompt = _build_schema_prompt(df, question, mode)
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": chosen_model,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
-        ],
-        "response_format": {"type": "json_object"}
-    }
-
-    try:
-        resp = requests.post(endpoint, headers=headers, json=payload, timeout=30.0)
-        if resp.status_code != 200:
-            err_detail = resp.text
-            try:
-                err_detail = resp.json().get("error", {}).get("message", resp.text)
-            except Exception:
-                pass
-            raise RuntimeError(f"{provider_label} Error ({resp.status_code}): {err_detail}")
-
-        data = resp.json()
-        content = data["choices"][0]["message"]["content"]
-        return parse_llm_json_response(content, provider_label, chosen_model, mode)
-    except Exception as e:
-        if isinstance(e, RuntimeError):
-            raise
-        raise RuntimeError(f"{provider_label} Connection Error ({chosen_model}): {str(e)}")
-
-
 def generate_with_local_ollama(
     question: str,
     df: pd.DataFrame,
@@ -424,10 +370,9 @@ def generate_code_and_reasoning(
     model_name: Optional[str] = None,
     base_url: Optional[str] = None
 ) -> Tuple[str, str, str]:
-    """Master entry point for NL -> Code generation across all 4 providers + built-in fallback."""
+    """Master entry point for NL -> Code generation across cloud providers (Gemini, Groq), local Ollama, and built-in fallback."""
     gemini_key = api_key or os.getenv("GEMINI_API_KEY")
     groq_key = api_key or os.getenv("GROQ_API_KEY")
-    qwen_key = api_key or os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
 
     # 1. Google Gemini
     if provider == "gemini":
@@ -442,16 +387,12 @@ def generate_code_and_reasoning(
             raise RuntimeError("Groq API Key (gsk_...) is required. Please set it in LLM Engine Settings.")
         return generate_with_groq(question, df, mode, key, model_name)
 
-    # 3. Qwen Cloud
-    if provider == "qwen":
-        key = qwen_key or api_key
-        if not key:
-            raise RuntimeError("Qwen API Key is required (starts with sk- for DashScope, or gsk_ for Groq).")
-        return generate_with_qwen(question, df, mode, key, model_name)
-
-    # 4. Local Qwen (Ollama / QLoRA)
+    # 3. Local Qwen (Ollama / QLoRA)
     if provider == "local_ollama":
         return generate_with_local_ollama(question, df, mode, base_url, model_name)
 
-    # 5. Default to high-accuracy Built-in Smart Local Engine
+    if provider == "qwen":
+        raise RuntimeError("Qwen Cloud has been removed. Please select Groq LPU or Local Qwen (Ollama).")
+
+    # 4. Default to high-accuracy Built-in Smart Local Engine
     return generate_local_fallback(question, df, mode)

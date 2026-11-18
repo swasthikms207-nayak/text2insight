@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Key, Sparkles, Check, ShieldAlert, Cpu, Zap } from 'lucide-react';
+import { X, Key, Sparkles, Check, ShieldAlert, Cpu, Zap, Code2 } from 'lucide-react';
 
 export default function ApiKeyModal({
   isOpen,
@@ -17,12 +17,24 @@ export default function ApiKeyModal({
 
   if (!isOpen) return null;
 
+  const getDefaultModel = (prov) => {
+    if (prov === 'gemini') return 'gemini-2.5-flash';
+    if (prov === 'groq') return 'llama-3.3-70b-versatile';
+    if (prov === 'qwen') return 'qwen-2.5-coder-32b-instruct';
+    return 'gemini-2.5-flash';
+  };
+
+  const handleSelectProvider = (prov) => {
+    setProvider(prov);
+    setModelName(getDefaultModel(prov));
+  };
+
   const handleSave = (e) => {
     e.preventDefault();
     onSaveConfig({
       provider: apiKey.trim() ? provider : 'smart-local',
       apiKey: apiKey.trim(),
-      modelName: modelName.trim() || (provider === 'gemini' ? 'gemini-2.5-flash' : 'llama-3.3-70b-versatile'),
+      modelName: modelName.trim() || getDefaultModel(provider),
       hasKey: !!apiKey.trim()
     });
     onClose();
@@ -41,7 +53,7 @@ export default function ApiKeyModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D47A1]/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-[#D2E3FC] max-w-md w-full overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl border border-[#D2E3FC] max-w-lg w-full overflow-hidden">
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFD]">
@@ -51,7 +63,7 @@ export default function ApiKeyModal({
             </div>
             <div>
               <h2 className="text-sm font-bold text-[#1E293B]">LLM Engine Settings</h2>
-              <p className="text-[11px] text-[#5F6368]">Configure Gemini or Groq code generation</p>
+              <p className="text-[11px] text-[#5F6368]">Configure Gemini, Groq, or Qwen LLM for code generation</p>
             </div>
           </div>
           <button
@@ -71,7 +83,7 @@ export default function ApiKeyModal({
             <div className="text-xs text-[#1E293B]">
               <span className="font-semibold text-[#1A73E8]">Built-in Smart Engine:</span>
               <p className="text-[#5F6368] mt-0.5 leading-relaxed">
-                If no API key is entered, Text2Insight automatically uses its built-in analytical NLP translator. Add an API key below to unlock advanced multi-step reasoning.
+                If no API key is entered, Text2Insight automatically uses its built-in analytical NLP translator. Add an API key below to unlock advanced reasoning.
               </p>
             </div>
           </div>
@@ -79,13 +91,11 @@ export default function ApiKeyModal({
           {/* Provider Selection */}
           <div>
             <label className="block text-xs font-semibold text-[#1E293B] mb-1.5">Select LLM Provider</label>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-3 gap-2">
+              {/* Gemini */}
               <button
                 type="button"
-                onClick={() => {
-                  setProvider('gemini');
-                  setModelName('gemini-2.5-flash');
-                }}
+                onClick={() => handleSelectProvider('gemini')}
                 className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                   provider === 'gemini'
                     ? 'border-[#1A73E8] bg-[#E8F0FE] ring-1 ring-[#1A73E8]'
@@ -93,18 +103,16 @@ export default function ApiKeyModal({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#1E293B]">Google Gemini</span>
+                  <span className="text-xs font-bold text-[#1E293B]">Gemini</span>
                   <Sparkles className="w-3.5 h-3.5 text-[#1A73E8]" />
                 </div>
-                <span className="text-[10px] text-[#5F6368] mt-1">Gemini 2.5 Flash</span>
+                <span className="text-[10px] text-[#5F6368] mt-1 truncate">2.5 Flash</span>
               </button>
 
+              {/* Groq */}
               <button
                 type="button"
-                onClick={() => {
-                  setProvider('groq');
-                  setModelName('llama-3.3-70b-versatile');
-                }}
+                onClick={() => handleSelectProvider('groq')}
                 className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                   provider === 'groq'
                     ? 'border-[#1A73E8] bg-[#E8F0FE] ring-1 ring-[#1A73E8]'
@@ -115,7 +123,24 @@ export default function ApiKeyModal({
                   <span className="text-xs font-bold text-[#1E293B]">Groq LPU</span>
                   <Zap className="w-3.5 h-3.5 text-[#1A73E8]" />
                 </div>
-                <span className="text-[10px] text-[#5F6368] mt-1">Llama 3.3 70B</span>
+                <span className="text-[10px] text-[#5F6368] mt-1 truncate">Llama 3.3</span>
+              </button>
+
+              {/* Qwen */}
+              <button
+                type="button"
+                onClick={() => handleSelectProvider('qwen')}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  provider === 'qwen'
+                    ? 'border-[#1A73E8] bg-[#E8F0FE] ring-1 ring-[#1A73E8]'
+                    : 'border-[#CBD5E1] hover:border-[#1A73E8]'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#1E293B]">Qwen LLM</span>
+                  <Code2 className="w-3.5 h-3.5 text-[#1A73E8]" />
+                </div>
+                <span className="text-[10px] text-[#5F6368] mt-1 truncate">2.5 Coder</span>
               </button>
             </div>
           </div>
@@ -123,17 +148,27 @@ export default function ApiKeyModal({
           {/* API Key Input */}
           <div>
             <label className="block text-xs font-semibold text-[#1E293B] mb-1">
-              {provider === 'gemini' ? 'Gemini API Key' : 'Groq API Key'}
+              {provider === 'gemini'
+                ? 'Gemini API Key'
+                : (provider === 'groq'
+                  ? 'Groq API Key'
+                  : 'Qwen API Key (DashScope or Groq Qwen)')}
             </label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               className="w-full px-3 py-2 border border-[#CBD5E1] rounded-lg text-xs font-mono focus:outline-hidden focus:border-[#1A73E8] focus:ring-1 focus:ring-[#1A73E8]"
-              placeholder={provider === 'gemini' ? 'AIzaSy...' : 'gsk_...'}
+              placeholder={
+                provider === 'gemini'
+                  ? 'AIzaSy...'
+                  : (provider === 'groq' ? 'gsk_...' : 'sk-... or gsk_...')
+              }
             />
             <p className="text-[10px] text-[#5F6368] mt-1">
-              Stored only in your local browser session. Never sent anywhere except direct API calls.
+              {provider === 'qwen'
+                ? 'Compatible with DashScope / Alibaba Cloud keys or Groq keys (gsk_).'
+                : 'Stored locally in browser session. Never sent to third parties.'}
             </p>
           </div>
 
@@ -145,8 +180,13 @@ export default function ApiKeyModal({
               value={modelName}
               onChange={(e) => setModelName(e.target.value)}
               className="w-full px-3 py-2 border border-[#CBD5E1] rounded-lg text-xs font-mono focus:outline-hidden focus:border-[#1A73E8] focus:ring-1 focus:ring-[#1A73E8]"
-              placeholder={provider === 'gemini' ? 'gemini-2.5-flash' : 'llama-3.3-70b-versatile'}
+              placeholder={getDefaultModel(provider)}
             />
+            {provider === 'qwen' && (
+              <p className="text-[10px] text-[#5F6368] mt-1">
+                Options: <code className="text-[#1A73E8]">qwen-2.5-coder-32b-instruct</code>, <code className="text-[#1A73E8]">qwen-2.5-72b-instruct</code>, <code className="text-[#1A73E8]">qwen-turbo</code>
+              </p>
+            )}
           </div>
 
           {/* Actions */}

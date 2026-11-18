@@ -25,7 +25,7 @@ class QueryRequest(BaseModel):
     dataset_id: str
     question: str
     mode: str = "auto"  # "auto", "sql", "pandas"
-    provider: str = "smart-local"  # "gemini", "groq", "smart-local"
+    provider: str = "smart-local"  # "gemini", "groq", "qwen", "smart-local"
     api_key: Optional[str] = None
     model_name: Optional[str] = None
 

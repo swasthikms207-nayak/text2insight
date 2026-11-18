@@ -93,11 +93,17 @@ export default function Navbar({
                   ? 'bg-[#E8F0FE] border-[#D2E3FC] text-[#1A73E8]'
                   : 'bg-white border-[#E2E8F0] text-[#5F6368] hover:border-[#1A73E8] hover:text-[#1A73E8]'
               }`}
-              title="Configure Gemini or Groq API Key"
+              title="Configure Gemini, Groq, or Qwen LLM"
             >
               <Key className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">
-                {apiKeyConfig.provider === 'gemini' ? 'Gemini 2.5' : (apiKeyConfig.provider === 'groq' ? 'Groq LPU' : 'Local NLP')}
+                {apiKeyConfig.provider === 'gemini'
+                  ? 'Gemini 2.5'
+                  : (apiKeyConfig.provider === 'groq'
+                    ? 'Groq LPU'
+                    : (apiKeyConfig.provider === 'qwen'
+                      ? 'Qwen 2.5'
+                      : 'Local NLP'))}
               </span>
               {apiKeyConfig.hasKey && (
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>

@@ -18,6 +18,7 @@
 - **Natural Language to Code (SQL & Pandas):**
   - **Google Gemini Integration:** Connect your Gemini API Key (`gemini-2.5-flash` or `gemini-1.5-flash`) for multi-step analytical reasoning.
   - **Groq API Integration:** Connect your Groq API Key (`llama-3.3-70b-versatile` or `llama-3.1-8b-instant`) for ultra-low latency LPU analytical code generation.
+  - **Qwen LLM Integration:** Connect Qwen 2.5 Coder (`qwen-2.5-coder-32b-instruct`, `qwen-2.5-72b-instruct`) via DashScope or Groq for world-class SQL and Pandas synthesis.
   - **Built-in Smart Local Engine:** Fully functional out of the box with zero external API key requirements. Handles aggregations, group-bys, top-N rankings, date trends, and complex comparisons.
 
 - **Multi-Layered Safety Sandbox:**

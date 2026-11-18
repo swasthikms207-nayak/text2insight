@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Key, Sparkles, Check, ShieldAlert, Cpu, Zap, Code2 } from 'lucide-react';
+import { X, Key, Sparkles, Check, ShieldAlert, Cpu, Zap, Code2, HardDrive, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function ApiKeyModal({
   isOpen,
@@ -7,63 +7,120 @@ export default function ApiKeyModal({
   apiKeyConfig,
   onSaveConfig
 }) {
-  const [provider, setProvider] = useState(apiKeyConfig.provider === 'openai' ? 'groq' : (apiKeyConfig.provider || 'gemini'));
+  const [provider, setProvider] = useState(() => {
+    if (apiKeyConfig.provider === 'openai') return 'groq';
+    return apiKeyConfig.provider || 'gemini';
+  });
+  
   const [apiKey, setApiKey] = useState(apiKeyConfig.apiKey || '');
-  const [modelName, setModelName] = useState(
-    apiKeyConfig.modelName === 'gpt-4o-mini'
-      ? 'llama-3.3-70b-versatile'
-      : (apiKeyConfig.modelName || 'gemini-2.5-flash')
-  );
+  const [baseUrl, setBaseUrl] = useState(apiKeyConfig.baseUrl || 'http://localhost:11434/v1');
+  const [modelName, setModelName] = useState(() => {
+    if (apiKeyConfig.modelName === 'gpt-4o-mini' || apiKeyConfig.modelName === 'llama-3.3-70b-versatile') {
+      return 'openai/gpt-oss-120b';
+    }
+    if (apiKeyConfig.modelName === 'gemini-2.5-flash') {
+      return 'gemini-3.8-flash';
+    }
+    if (apiKeyConfig.modelName === 'qwen-2.5-coder-32b' || apiKeyConfig.modelName === 'qwen-2.5-32b') {
+      return 'qwen/qwen3.8-27b';
+    }
+    return apiKeyConfig.modelName || 'gemini-3.8-flash';
+  });
+
+  // Local Ollama test status
+  const [testingOllama, setTestingOllama] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState(null);
 
   if (!isOpen) return null;
 
-  const getDefaultModel = (prov) => {
-    if (prov === 'gemini') return 'gemini-2.5-flash';
-    if (prov === 'groq') return 'llama-3.3-70b-versatile';
-    if (prov === 'qwen') return 'qwen-2.5-coder-32b-instruct';
-    return 'gemini-2.5-flash';
+  const getDefaultModel = (prov, currentKey = apiKey) => {
+    if (prov === 'gemini') return 'gemini-3.8-flash';
+    if (prov === 'groq') return 'openai/gpt-oss-120b';
+    if (prov === 'qwen') {
+      return currentKey.trim().startsWith('gsk_') ? 'qwen/qwen3.8-27b' : 'qwen-2.5-coder-32b-instruct';
+    }
+    if (prov === 'local_ollama') return 'text2insight-qwen';
+    return 'gemini-3.8-flash';
   };
 
   const handleSelectProvider = (prov) => {
     setProvider(prov);
-    setModelName(getDefaultModel(prov));
+    setModelName(getDefaultModel(prov, apiKey));
+    setOllamaStatus(null);
+  };
+
+  const handleApiKeyChange = (val) => {
+    setApiKey(val);
+    if (provider === 'qwen') {
+      if (val.trim().startsWith('gsk_')) {
+        // Auto-switch to Groq Qwen model if Groq key is pasted
+        setModelName('qwen/qwen3.8-27b');
+      } else if (val.trim().startsWith('sk-') && modelName === 'qwen/qwen3.8-27b') {
+        setModelName('qwen-2.5-coder-32b-instruct');
+      }
+    }
+  };
+
+  const handleTestOllamaConnection = async () => {
+    setTestingOllama(true);
+    setOllamaStatus(null);
+    try {
+      const res = await fetch(`/api/llm/local-status?base_url=${encodeURIComponent(baseUrl)}`);
+      const data = await res.json();
+      setOllamaStatus(data);
+    } catch (err) {
+      setOllamaStatus({
+        online: false,
+        message: `Failed to test connection: ${err.message}`,
+        models: []
+      });
+    } finally {
+      setTestingOllama(false);
+    }
   };
 
   const handleSave = (e) => {
     e.preventDefault();
+    const isLocal = provider === 'local_ollama';
+    const hasKeyOrLocal = isLocal || !!apiKey.trim();
+    
     onSaveConfig({
-      provider: apiKey.trim() ? provider : 'smart-local',
-      apiKey: apiKey.trim(),
-      modelName: modelName.trim() || getDefaultModel(provider),
-      hasKey: !!apiKey.trim()
+      provider: hasKeyOrLocal ? provider : 'smart-local',
+      apiKey: isLocal ? '' : apiKey.trim(),
+      baseUrl: baseUrl.trim() || 'http://localhost:11434/v1',
+      modelName: modelName.trim() || getDefaultModel(provider, apiKey),
+      hasKey: hasKeyOrLocal
     });
     onClose();
   };
 
-  const handleClear = () => {
+  const handleResetToBuiltin = () => {
     setApiKey('');
     onSaveConfig({
       provider: 'smart-local',
       apiKey: '',
+      baseUrl: 'http://localhost:11434/v1',
       modelName: '',
       hasKey: false
     });
     onClose();
   };
 
+  const isGroqQwenKey = provider === 'qwen' && apiKey.trim().startsWith('gsk_');
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D47A1]/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-[#D2E3FC] max-w-lg w-full overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl border border-[#D2E3FC] max-w-lg w-full overflow-hidden max-h-[92vh] flex flex-col">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFD]">
+        <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFD] shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#E8F0FE] text-[#1A73E8] flex items-center justify-center">
               <Key className="w-4 h-4" />
             </div>
             <div>
               <h2 className="text-sm font-bold text-[#1E293B]">LLM Engine Settings</h2>
-              <p className="text-[11px] text-[#5F6368]">Configure Gemini, Groq, or Qwen LLM for code generation</p>
+              <p className="text-[11px] text-[#5F6368]">Configure Cloud (Gemini, Groq, Qwen) or Offline Local Qwen</p>
             </div>
           </div>
           <button
@@ -75,24 +132,25 @@ export default function ApiKeyModal({
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSave} className="p-6 space-y-4">
+        <form onSubmit={handleSave} className="p-6 space-y-4 overflow-y-auto flex-1">
           
           {/* Smart Local Banner */}
           <div className="p-3 bg-[#E8F0FE]/70 border border-[#D2E3FC] rounded-xl flex items-start gap-2.5">
             <Cpu className="w-4 h-4 text-[#1A73E8] shrink-0 mt-0.5" />
             <div className="text-xs text-[#1E293B]">
               <span className="font-semibold text-[#1A73E8]">Built-in Smart Engine:</span>
-              <p className="text-[#5F6368] mt-0.5 leading-relaxed">
-                If no API key is entered, Text2Insight automatically uses its built-in analytical NLP translator. Add an API key below to unlock advanced reasoning.
+              <p className="text-[#5F6368] mt-0.5 leading-relaxed text-[11px]">
+                If no external or local provider is enabled, Text2Insight uses its safe, built-in semantic NLP rule engine with zero API key or server requirements.
               </p>
             </div>
           </div>
 
-          {/* Provider Selection */}
+          {/* Provider Selection (4 Cards) */}
           <div>
             <label className="block text-xs font-semibold text-[#1E293B] mb-1.5">Select LLM Provider</label>
-            <div className="grid grid-cols-3 gap-2">
-              {/* Gemini */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              
+              {/* Card 1: Gemini */}
               <button
                 type="button"
                 onClick={() => handleSelectProvider('gemini')}
@@ -106,10 +164,10 @@ export default function ApiKeyModal({
                   <span className="text-xs font-bold text-[#1E293B]">Gemini</span>
                   <Sparkles className="w-3.5 h-3.5 text-[#1A73E8]" />
                 </div>
-                <span className="text-[10px] text-[#5F6368] mt-1 truncate">2.5 Flash</span>
+                <span className="text-[10px] text-[#5F6368] mt-1 truncate">3.8 Flash</span>
               </button>
 
-              {/* Groq */}
+              {/* Card 2: Groq */}
               <button
                 type="button"
                 onClick={() => handleSelectProvider('groq')}
@@ -123,10 +181,10 @@ export default function ApiKeyModal({
                   <span className="text-xs font-bold text-[#1E293B]">Groq LPU</span>
                   <Zap className="w-3.5 h-3.5 text-[#1A73E8]" />
                 </div>
-                <span className="text-[10px] text-[#5F6368] mt-1 truncate">Llama 3.3</span>
+                <span className="text-[10px] text-[#5F6368] mt-1 truncate">gpt-oss-120b</span>
               </button>
 
-              {/* Qwen */}
+              {/* Card 3: Qwen Cloud */}
               <button
                 type="button"
                 onClick={() => handleSelectProvider('qwen')}
@@ -137,66 +195,324 @@ export default function ApiKeyModal({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#1E293B]">Qwen LLM</span>
+                  <span className="text-xs font-bold text-[#1E293B]">Qwen Cloud</span>
                   <Code2 className="w-3.5 h-3.5 text-[#1A73E8]" />
                 </div>
-                <span className="text-[10px] text-[#5F6368] mt-1 truncate">2.5 Coder</span>
+                <span className="text-[10px] text-[#5F6368] mt-1 truncate">DashScope/Groq</span>
               </button>
+
+              {/* Card 4: Local Qwen (Ollama) */}
+              <button
+                type="button"
+                onClick={() => handleSelectProvider('local_ollama')}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  provider === 'local_ollama'
+                    ? 'border-[#1A73E8] bg-[#E8F0FE] ring-1 ring-[#1A73E8]'
+                    : 'border-[#CBD5E1] hover:border-[#1A73E8]'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#1E293B]">Local Qwen</span>
+                  <HardDrive className="w-3.5 h-3.5 text-[#1A73E8]" />
+                </div>
+                <span className="text-[10px] text-[#5F6368] mt-1 truncate font-medium text-[#1A73E8]">Ollama / QLoRA</span>
+              </button>
+
             </div>
           </div>
 
-          {/* API Key Input */}
-          <div>
-            <label className="block text-xs font-semibold text-[#1E293B] mb-1">
-              {provider === 'gemini'
-                ? 'Gemini API Key'
-                : (provider === 'groq'
-                  ? 'Groq API Key'
-                  : 'Qwen API Key (DashScope or Groq Qwen)')}
-            </label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="w-full px-3 py-2 border border-[#CBD5E1] rounded-lg text-xs font-mono focus:outline-hidden focus:border-[#1A73E8] focus:ring-1 focus:ring-[#1A73E8]"
-              placeholder={
-                provider === 'gemini'
-                  ? 'AIzaSy...'
-                  : (provider === 'groq' ? 'gsk_...' : 'sk-... or gsk_...')
-              }
-            />
-            <p className="text-[10px] text-[#5F6368] mt-1">
-              {provider === 'qwen'
-                ? 'Compatible with DashScope / Alibaba Cloud keys or Groq keys (gsk_).'
-                : 'Stored locally in browser session. Never sent to third parties.'}
-            </p>
-          </div>
+          {/* Configuration Inputs based on Provider */}
+          {provider === 'local_ollama' ? (
+            /* LOCAL QWEN (OLLAMA) CONFIGURATION */
+            <div className="space-y-3.5 p-3.5 rounded-xl bg-[#F8FAFD] border border-[#D2E3FC]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#1A73E8] flex items-center gap-1.5">
+                  <HardDrive className="w-3.5 h-3.5" />
+                  Local Ollama Offline Mode (No API key required)
+                </span>
+                <button
+                  type="button"
+                  onClick={handleTestOllamaConnection}
+                  disabled={testingOllama}
+                  className="px-2.5 py-1 text-[11px] font-semibold bg-white border border-[#CBD5E1] hover:border-[#1A73E8] text-[#1A73E8] rounded-lg transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3 h-3 ${testingOllama ? 'animate-spin' : ''}`} />
+                  <span>{testingOllama ? 'Testing...' : 'Test Connection'}</span>
+                </button>
+              </div>
 
-          {/* Model Name Input */}
-          <div>
-            <label className="block text-xs font-semibold text-[#1E293B] mb-1">Model Name</label>
-            <input
-              type="text"
-              value={modelName}
-              onChange={(e) => setModelName(e.target.value)}
-              className="w-full px-3 py-2 border border-[#CBD5E1] rounded-lg text-xs font-mono focus:outline-hidden focus:border-[#1A73E8] focus:ring-1 focus:ring-[#1A73E8]"
-              placeholder={getDefaultModel(provider)}
-            />
-            {provider === 'qwen' && (
-              <p className="text-[10px] text-[#5F6368] mt-1">
-                Options: <code className="text-[#1A73E8]">qwen-2.5-coder-32b-instruct</code>, <code className="text-[#1A73E8]">qwen-2.5-72b-instruct</code>, <code className="text-[#1A73E8]">qwen-turbo</code>
-              </p>
-            )}
-          </div>
+              {/* Connection Status Notice */}
+              {ollamaStatus && (
+                <div className={`p-2.5 rounded-lg text-xs flex items-start gap-2 ${
+                  ollamaStatus.online ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-amber-50 border border-amber-200 text-amber-800'
+                }`}>
+                  {ollamaStatus.online ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  )}
+                  <div className="space-y-1">
+                    <p className="font-semibold">{ollamaStatus.message}</p>
+                    {ollamaStatus.models && ollamaStatus.models.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        <span className="text-[10px] text-emerald-700">Installed models:</span>
+                        {ollamaStatus.models.map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setModelName(m)}
+                            className="text-[10px] bg-white border border-emerald-300 text-emerald-900 px-1.5 py-0.5 rounded cursor-pointer hover:bg-emerald-100"
+                            title="Click to use this model"
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Base URL */}
+              <div>
+                <label className="block text-xs font-semibold text-[#1E293B] mb-1">Ollama Base URL</label>
+                <input
+                  type="text"
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#CBD5E1] rounded-lg text-xs font-mono focus:outline-hidden focus:border-[#1A73E8] focus:ring-1 focus:ring-[#1A73E8]"
+                  placeholder="http://localhost:11434/v1"
+                />
+              </div>
+
+              {/* Model Name */}
+              <div>
+                <label className="block text-xs font-semibold text-[#1E293B] mb-1">Local Model Name</label>
+                <input
+                  type="text"
+                  value={modelName}
+                  onChange={(e) => setModelName(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#CBD5E1] rounded-lg text-xs font-mono focus:outline-hidden focus:border-[#1A73E8] focus:ring-1 focus:ring-[#1A73E8]"
+                  placeholder="text2insight-qwen"
+                />
+                
+                {/* Quick-select options */}
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <span className="text-[10px] text-[#5F6368]">Quick Select:</span>
+                  <button
+                    type="button"
+                    onClick={() => setModelName('text2insight-qwen')}
+                    className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                      modelName === 'text2insight-qwen'
+                        ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
+                        : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
+                    }`}
+                  >
+                    text2insight-qwen (QLoRA)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModelName('qwen2.5-coder:7b')}
+                    className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                      modelName === 'qwen2.5-coder:7b'
+                        ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
+                        : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
+                    }`}
+                  >
+                    qwen2.5-coder:7b (Base)
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            /* CLOUD PROVIDERS CONFIGURATION */
+            <div className="space-y-3.5">
+              
+              {/* API Key Input */}
+              <div>
+                <label className="block text-xs font-semibold text-[#1E293B] mb-1">
+                  {provider === 'gemini'
+                    ? 'Google Gemini API Key'
+                    : (provider === 'groq'
+                      ? 'Groq API Key'
+                      : 'Qwen Cloud API Key')}
+                </label>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => handleApiKeyChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#CBD5E1] rounded-lg text-xs font-mono focus:outline-hidden focus:border-[#1A73E8] focus:ring-1 focus:ring-[#1A73E8]"
+                  placeholder={
+                    provider === 'gemini'
+                      ? 'AIzaSy...'
+                      : (provider === 'groq' ? 'gsk_...' : (isGroqQwenKey ? 'gsk_...' : 'sk-... or gsk_...'))
+                  }
+                />
+                
+                {provider === 'qwen' && (
+                  <p className="text-[10px] text-[#5F6368] mt-1">
+                    {isGroqQwenKey ? (
+                      <span className="text-[#1A73E8] font-semibold">
+                        ⚡ Groq Key detected: Automatically routed to Groq LPU with model <code className="bg-gray-100 px-1 rounded">qwen/qwen3.8-27b</code>.
+                      </span>
+                    ) : (
+                      <span>
+                        Enter your Alibaba DashScope key (<code className="bg-gray-100 px-1 rounded">sk-...</code>) or Groq key (<code className="bg-gray-100 px-1 rounded">gsk_...</code>).
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+
+              {/* Model Name Input & Options */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-[#1E293B]">Model Name</label>
+                  {provider === 'groq' && (
+                    <span className="text-[10px] text-[#5F6368]">Endpoint: https://api.groq.com/openai/v1</span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={modelName}
+                  onChange={(e) => setModelName(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#CBD5E1] rounded-lg text-xs font-mono focus:outline-hidden focus:border-[#1A73E8] focus:ring-1 focus:ring-[#1A73E8]"
+                  placeholder={getDefaultModel(provider, apiKey)}
+                />
+
+                {/* Quick Model Options */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                  <span className="text-[10px] text-[#5F6368]">Options:</span>
+                  
+                  {provider === 'gemini' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setModelName('gemini-3.8-flash')}
+                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                          modelName === 'gemini-3.8-flash'
+                            ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
+                            : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
+                        }`}
+                      >
+                        gemini-3.8-flash (Default)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModelName('gemini-3.5-flash-lite')}
+                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                          modelName === 'gemini-3.5-flash-lite'
+                            ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
+                            : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
+                        }`}
+                      >
+                        gemini-3.5-flash-lite
+                      </button>
+                    </>
+                  )}
+
+                  {provider === 'groq' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setModelName('openai/gpt-oss-120b')}
+                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                          modelName === 'openai/gpt-oss-120b'
+                            ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
+                            : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
+                        }`}
+                      >
+                        openai/gpt-oss-120b (Default)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModelName('qwen/qwen3.8-27b')}
+                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                          modelName === 'qwen/qwen3.8-27b'
+                            ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
+                            : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
+                        }`}
+                      >
+                        qwen/qwen3.8-27b
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModelName('openai/gpt-oss-20b')}
+                        className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                          modelName === 'openai/gpt-oss-20b'
+                            ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
+                            : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
+                        }`}
+                      >
+                        openai/gpt-oss-20b
+                      </button>
+                    </>
+                  )}
+
+                  {provider === 'qwen' && (
+                    <>
+                      {isGroqQwenKey ? (
+                        <button
+                          type="button"
+                          onClick={() => setModelName('qwen/qwen3.8-27b')}
+                          className="text-[10px] px-2 py-0.5 rounded border bg-[#1A73E8] text-white border-[#1A73E8]"
+                        >
+                          qwen/qwen3.8-27b (Groq Verified)
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setModelName('qwen-2.5-coder-32b-instruct')}
+                            className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                              modelName === 'qwen-2.5-coder-32b-instruct'
+                                ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
+                                : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
+                            }`}
+                          >
+                            qwen-2.5-coder-32b-instruct
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setModelName('qwen-plus')}
+                            className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                              modelName === 'qwen-plus'
+                                ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
+                                : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
+                            }`}
+                          >
+                            qwen-plus
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setModelName('qwen-turbo')}
+                            className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                              modelName === 'qwen-turbo'
+                                ? 'bg-[#1A73E8] text-white border-[#1A73E8]'
+                                : 'bg-white border-[#CBD5E1] text-[#1E293B] hover:border-[#1A73E8]'
+                            }`}
+                          >
+                            qwen-turbo
+                          </button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between pt-3 border-t border-[#E2E8F0]">
             <button
               type="button"
-              onClick={handleClear}
+              onClick={handleResetToBuiltin}
               className="text-xs text-red-600 hover:text-red-700 font-medium cursor-pointer"
             >
-              Reset to Local
+              Reset to Built-in Engine
             </button>
             <div className="flex gap-2">
               <button

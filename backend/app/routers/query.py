@@ -31,10 +31,24 @@ def execute_natural_language_query(req: QueryRequest):
             mode=req.mode,
             provider=req.provider,
             api_key=req.api_key,
-            model_name=req.model_name
+            model_name=req.model_name,
+            base_url=req.base_url
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Code generation error: {str(e)}")
+        return QueryResponse(
+            success=False,
+            question=req.question,
+            code="",
+            code_type="sql",
+            reasoning=f"Generation failed with {req.provider}: {str(e)}",
+            columns=[],
+            rows=[],
+            total_rows=0,
+            execution_time_ms=0.0,
+            chart=generate_chart_spec(None, req.question),
+            insight=generate_insights(None, req.question),
+            error=str(e)
+        )
 
     # Safety validation
     if code_type == "sql":

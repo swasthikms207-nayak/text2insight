@@ -42,7 +42,8 @@ export default function App() {
     return {
       provider: 'smart-local',
       apiKey: '',
-      modelName: 'gemini-2.5-flash',
+      baseUrl: 'http://localhost:11434/v1',
+      modelName: 'gemini-3.8-flash',
       hasKey: false
     };
   });
@@ -98,7 +99,8 @@ export default function App() {
         mode: targetMode,
         provider: llmConfig.hasKey ? llmConfig.provider : 'smart-local',
         api_key: llmConfig.apiKey || null,
-        model_name: llmConfig.modelName || null
+        model_name: llmConfig.modelName || null,
+        base_url: llmConfig.baseUrl || null
       };
 
       const res = await fetch('/api/query/execute', {

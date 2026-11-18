@@ -16,9 +16,10 @@
     - *Tech Giants Financial Performance 2024* (Quarterly revenue, net income, R&D spend)
 
 - **Natural Language to Code (SQL & Pandas):**
-  - **Google Gemini Integration:** Connect your Gemini API Key (`gemini-2.5-flash` or `gemini-1.5-flash`) for multi-step analytical reasoning.
-  - **Groq API Integration:** Connect your Groq API Key (`llama-3.3-70b-versatile` or `llama-3.1-8b-instant`) for ultra-low latency LPU analytical code generation.
-  - **Qwen LLM Integration:** Connect Qwen 2.5 Coder (`qwen-2.5-coder-32b-instruct`, `qwen-2.5-72b-instruct`) via DashScope or Groq for world-class SQL and Pandas synthesis.
+  - **Google Gemini Integration:** Connect your Gemini API Key (`gemini-3.8-flash` or `gemini-3.5-flash-lite`) for multi-step analytical reasoning.
+  - **Groq API Integration:** Connect your Groq API Key (`openai/gpt-oss-120b`, `qwen/qwen3.8-27b`, or `openai/gpt-oss-20b`) for ultra-low latency LPU analytical code generation.
+  - **Qwen Cloud Integration:** Connect via Alibaba DashScope (`qwen-2.5-coder-32b-instruct`, `qwen-plus`, `qwen-turbo`) or Groq (`qwen/qwen3.8-27b`).
+  - **Local Qwen (Ollama / QLoRA):** Run 100% offline with zero API keys using a local Ollama instance (`text2insight-qwen` or `qwen2.5-coder:7b`).
   - **Built-in Smart Local Engine:** Fully functional out of the box with zero external API key requirements. Handles aggregations, group-bys, top-N rankings, date trends, and complex comparisons.
 
 - **Multi-Layered Safety Sandbox:**

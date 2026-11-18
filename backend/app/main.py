@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from .routers import datasets, query
+from .routers import datasets, query, llm
 
 app = FastAPI(
     title="Text2Insight - AI Data Analyst Engine",
@@ -23,6 +23,7 @@ app.add_middleware(
 # Include API Routers
 app.include_router(datasets.router)
 app.include_router(query.router)
+app.include_router(llm.router)
 
 @app.get("/api/health")
 def health():

@@ -84,10 +84,6 @@ export default function ImportSwitchPage({
       
       {/* Hero Header */}
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E8F0FE] text-[#1A73E8] border border-[#D2E3FC] text-xs font-semibold">
-          <Sparkles className="w-4 h-4 text-[#1A73E8]" />
-          <span>Step 1: Import or Connect Your Dataset</span>
-        </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1E293B] tracking-tight">
           Import Your Dataset
         </h1>

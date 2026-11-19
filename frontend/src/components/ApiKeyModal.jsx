@@ -8,7 +8,7 @@ export default function ApiKeyModal({
   onSaveConfig
 }) {
   const [provider, setProvider] = useState(() => {
-    if (apiKeyConfig.provider === 'openai' || apiKeyConfig.provider === 'qwen') return 'groq';
+    if (apiKeyConfig.provider === 'openai' || apiKeyConfig.provider === 'qwen' || apiKeyConfig.provider === 'smart-local') return 'groq';
     return apiKeyConfig.provider || 'gemini';
   });
   
@@ -71,22 +71,22 @@ export default function ApiKeyModal({
     const hasKeyOrLocal = isLocal || !!apiKey.trim();
     
     onSaveConfig({
-      provider: hasKeyOrLocal ? provider : 'smart-local',
+      provider: provider,
       apiKey: isLocal ? '' : apiKey.trim(),
       baseUrl: baseUrl.trim() || 'http://localhost:11434/v1',
-      modelName: modelName.trim() || getDefaultModel(provider, apiKey),
+      modelName: modelName.trim() || getDefaultModel(provider),
       hasKey: hasKeyOrLocal
     });
     onClose();
   };
 
-  const handleResetToBuiltin = () => {
+  const handleClearSettings = () => {
     setApiKey('');
     onSaveConfig({
-      provider: 'smart-local',
+      provider: provider || 'gemini',
       apiKey: '',
       baseUrl: 'http://localhost:11434/v1',
-      modelName: '',
+      modelName: getDefaultModel(provider || 'gemini'),
       hasKey: false
     });
     onClose();
@@ -118,13 +118,13 @@ export default function ApiKeyModal({
         {/* Body */}
         <form onSubmit={handleSave} className="p-6 space-y-4 overflow-y-auto flex-1">
           
-          {/* Smart Local Banner */}
-          <div className="p-3 bg-[#E8F0FE]/70 border border-[#D2E3FC] rounded-xl flex items-start gap-2.5">
+          {/* LLM Engine Notice Banner */}
+          <div className="p-3 bg-[#F8FAFD] border border-[#D2E3FC] rounded-xl flex items-start gap-2.5">
             <Cpu className="w-4 h-4 text-[#1A73E8] shrink-0 mt-0.5" />
             <div className="text-xs text-[#1E293B]">
-              <span className="font-semibold text-[#1A73E8]">Built-in Smart Engine:</span>
+              <span className="font-semibold text-[#1A73E8]">LLM Engine Required:</span>
               <p className="text-[#5F6368] mt-0.5 leading-relaxed text-[11px]">
-                If no external or local provider is enabled, Text2Insight uses its safe, built-in semantic NLP rule engine with zero API key or server requirements.
+                Natural language query generation requires an active LLM provider. Select Google Gemini, Groq LPU, or Local Qwen (Ollama) below.
               </p>
             </div>
           </div>
@@ -404,10 +404,10 @@ export default function ApiKeyModal({
           <div className="flex items-center justify-between pt-3 border-t border-[#E2E8F0]">
             <button
               type="button"
-              onClick={handleResetToBuiltin}
-              className="text-xs text-red-600 hover:text-red-700 font-medium cursor-pointer"
+              onClick={handleClearSettings}
+              className="text-xs text-[#5F6368] hover:text-red-600 font-medium cursor-pointer transition-colors"
             >
-              Reset to Built-in Engine
+              Clear Settings
             </button>
             <div className="flex gap-2">
               <button

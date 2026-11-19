@@ -91,23 +91,23 @@ export default function Navbar({
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                 apiKeyConfig.hasKey
                   ? 'bg-[#E8F0FE] border-[#D2E3FC] text-[#1A73E8]'
-                  : 'bg-white border-[#E2E8F0] text-[#5F6368] hover:border-[#1A73E8] hover:text-[#1A73E8]'
+                  : 'bg-amber-50/80 border-amber-200 text-amber-800 hover:border-amber-400'
               }`}
               title="Configure Gemini, Groq, or Local Ollama"
             >
               <Key className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">
-                {apiKeyConfig.provider === 'gemini'
-                  ? 'Gemini 3.8'
-                  : (apiKeyConfig.provider === 'groq'
-                    ? 'Groq LPU'
-                    : (apiKeyConfig.provider === 'local_ollama'
-                      ? 'Local Qwen'
-                      : 'Built-in Engine'))}
+                {apiKeyConfig.hasKey
+                  ? (apiKeyConfig.provider === 'gemini'
+                    ? 'Gemini 3.8'
+                    : (apiKeyConfig.provider === 'groq'
+                      ? 'Groq LPU'
+                      : (apiKeyConfig.provider === 'local_ollama'
+                        ? 'Local Qwen'
+                        : 'LLM Active')))
+                  : 'No LLM Configured'}
               </span>
-              {apiKeyConfig.hasKey && (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              )}
+              <span className={`w-1.5 h-1.5 rounded-full ${apiKeyConfig.hasKey ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
             </button>
 
             {/* Safety status pill */}

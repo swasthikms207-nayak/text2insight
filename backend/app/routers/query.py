@@ -45,6 +45,13 @@ def execute_natural_language_query(req: QueryRequest):
             rows=[],
             total_rows=0,
             execution_time_ms=0.0,
+            safety=SafetyResult(
+                passed=False,
+                message=str(e),
+                sanitized_code="",
+                rules_applied=["LLM Provider Required"],
+                risk_level="blocked"
+            ),
             chart=generate_chart_spec(None, req.question),
             insight=generate_insights(None, req.question),
             error=str(e)

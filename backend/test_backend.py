@@ -16,32 +16,24 @@ print(f"Backend initialized successfully!")
 print(f"Active dataset: {ACTIVE_DATASET_ID}")
 print(f"Available datasets: {list(DATASETS_CACHE.keys())}")
 
-# Test SQL query execution
-req_sql = QueryRequest(
+# Test 1: Verify built-in rule engine is removed and LLM is required
+req_unconfigured = QueryRequest(
     dataset_id=ACTIVE_DATASET_ID,
     question="Show churn rate and customer count by subscription plan",
     mode="sql"
 )
-res_sql = execute_natural_language_query(req_sql)
-print(f"\n[Test 1] SQL Query Success: {res_sql.success}")
-print(f"Generated SQL:\n{res_sql.code}")
-print(f"Rows count: {len(res_sql.rows)}")
-print(f"First row: {res_sql.rows[0] if res_sql.rows else None}")
-print(f"Chart recommended: {res_sql.chart.recommended}, type: {res_sql.chart.chart_type}")
-print(f"Insight headline: {res_sql.insight.headline}")
+res_unconfigured = execute_natural_language_query(req_unconfigured)
+print(f"\n[Test 1] Unconfigured LLM Handled Gracefully: {not res_unconfigured.success}")
+print(f"Error Message: {res_unconfigured.error}")
+assert "LLM Engine Settings" in res_unconfigured.error or "required" in res_unconfigured.error
 
-# Test Pandas query execution
-req_pandas = QueryRequest(
-    dataset_id=ACTIVE_DATASET_ID,
-    question="Top 5 companies by monthly spend",
-    mode="pandas"
-)
-res_pandas = execute_natural_language_query(req_pandas)
-print(f"\n[Test 2] Pandas Query Success: {res_pandas.success}")
-print(f"Generated Pandas:\n{res_pandas.code}")
-print(f"Rows count: {len(res_pandas.rows)}")
-print(f"First row: {res_pandas.rows[0] if res_pandas.rows else None}")
-print(f"Chart recommended: {res_pandas.chart.recommended}, type: {res_pandas.chart.chart_type}")
+# Test 2: Direct SQL & Pandas execution engine test
+from app.engine.executor import execute_sql_duckdb, execute_pandas_safe
+df = DATASETS_CACHE[ACTIVE_DATASET_ID]
+sql_code = "SELECT plan, COUNT(*) AS record_count FROM df GROUP BY plan ORDER BY record_count DESC"
+res_df, exec_time = execute_sql_duckdb(sql_code, df)
+print(f"\n[Test 2] DuckDB SQL Engine Execution: Success ({len(res_df)} rows in {exec_time:.2f}ms)")
+assert len(res_df) > 0
 
 # Test Safety Sandbox (Forbidden statement)
 from app.engine.safety import validate_sql_safety, validate_pandas_safety

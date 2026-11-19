@@ -37,8 +37,8 @@ export default function App() {
       const saved = localStorage.getItem('text2insight_llm_config') || localStorage.getItem('queryblue_llm_config');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.provider === 'qwen') {
-          parsed.provider = 'smart-local';
+        if (parsed.provider === 'smart-local' || parsed.provider === 'qwen') {
+          parsed.provider = 'groq';
           parsed.hasKey = false;
         }
         return parsed;
@@ -47,10 +47,10 @@ export default function App() {
       // Ignore
     }
     return {
-      provider: 'smart-local',
+      provider: 'groq',
       apiKey: '',
       baseUrl: 'http://localhost:11434/v1',
-      modelName: 'gemini-3.8-flash',
+      modelName: 'openai/gpt-oss-120b',
       hasKey: false
     };
   });
@@ -96,6 +96,12 @@ export default function App() {
   ) => {
     if (!datasetId || !qText.trim()) return;
 
+    if (!llmConfig.hasKey && llmConfig.provider !== 'local_ollama') {
+      setQueryError("No LLM provider configured. The built-in rule engine has been removed. Please click 'No LLM Configured' in the top right to configure Gemini, Groq, or Local Qwen (Ollama).");
+      setIsKeyModalOpen(true);
+      return;
+    }
+
     setLoading(true);
     setQueryError(null);
 
@@ -104,7 +110,7 @@ export default function App() {
         dataset_id: datasetId,
         question: qText.trim(),
         mode: targetMode,
-        provider: llmConfig.hasKey ? llmConfig.provider : 'smart-local',
+        provider: llmConfig.provider || 'gemini',
         api_key: llmConfig.apiKey || null,
         model_name: llmConfig.modelName || null,
         base_url: llmConfig.baseUrl || null

@@ -25,7 +25,7 @@ class QueryRequest(BaseModel):
     dataset_id: str
     question: str
     mode: str = "auto"  # "auto", "sql", "pandas"
-    provider: str = "smart-local"  # "gemini", "groq", "local_ollama", "smart-local"
+    provider: str = "gemini"  # "gemini", "groq", "local_ollama"
     api_key: Optional[str] = None
     model_name: Optional[str] = None
     base_url: Optional[str] = None
@@ -69,7 +69,7 @@ class QueryResponse(BaseModel):
     rows: List[Dict[str, Any]] = []
     total_rows: int = 0
     execution_time_ms: float = 0.0
-    safety: SafetyResult
+    safety: Optional[SafetyResult] = None
     chart: ChartSpec
     insight: InsightReport
     error: Optional[str] = None

@@ -370,18 +370,18 @@ export default function App() {
                   />
                 )}
 
-                {/* 2. CHART VISUALIZATION */}
-                {queryResult.chart && queryResult.chart.data?.length > 0 && (
-                  <ChartView chartSpec={queryResult.chart} />
-                )}
-
-                {/* 3. INTERACTIVE DATA TABLE */}
+                {/* 2. INTERACTIVE DATA TABLE (DATASET QUERY RESULTS) */}
                 {queryResult.columns && queryResult.columns.length > 0 && (
                   <DataTable
                     columns={queryResult.columns}
                     rows={queryResult.rows}
                     totalRows={queryResult.total_rows}
                   />
+                )}
+
+                {/* 3. CHART VISUALIZATION */}
+                {queryResult.chart && queryResult.chart.data?.length > 0 && (
+                  <ChartView chartSpec={queryResult.chart} />
                 )}
 
                 {/* 4. CODE INSPECTOR & SANDBOX AUDIT */}

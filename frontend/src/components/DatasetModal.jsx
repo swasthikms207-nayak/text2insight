@@ -91,7 +91,7 @@ export default function DatasetModal({
               <Database className="w-5 h-5 text-[#1A73E8]" />
               Dataset Management
             </h2>
-            <p className="text-xs text-[#5F6368]">Upload a CSV/Excel file or connect to your PostgreSQL database.</p>
+            <p className="text-xs text-[#5F6368]">Upload a CSV, Excel, or JSON file or connect to your PostgreSQL database.</p>
           </div>
           <button
             onClick={onClose}
@@ -112,7 +112,7 @@ export default function DatasetModal({
             }`}
           >
             <Upload className="w-4 h-4" />
-            Upload CSV / Excel
+            Upload CSV / Excel / JSON
           </button>
 
           <button
@@ -168,13 +168,13 @@ export default function DatasetModal({
                     Click to browse or drag and drop your data file
                   </p>
                   <p className="text-xs text-[#5F6368] mt-1">
-                    Supports <span className="font-medium text-[#1A73E8]">.CSV</span>, <span className="font-medium text-[#1A73E8]">.XLSX</span>, and <span className="font-medium text-[#1A73E8]">.XLS</span> files up to 50MB
+                    Supports <span className="font-medium text-[#1A73E8]">.CSV</span>, <span className="font-medium text-[#1A73E8]">.XLSX</span>, <span className="font-medium text-[#1A73E8]">.XLS</span>, and <span className="font-medium text-[#1A73E8]">.JSON</span> files up to 50MB
                   </p>
                 </div>
                 <input
                   id="modal-dataset-file-input"
                   type="file"
-                  accept=".csv, .xlsx, .xls"
+                  accept=".csv, .xlsx, .xls, .json, .jsonl"
                   className="hidden"
                   onChange={handleFileChange}
                 />

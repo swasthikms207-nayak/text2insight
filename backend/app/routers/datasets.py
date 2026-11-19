@@ -1,4 +1,5 @@
 import io
+import json
 import uuid
 from datetime import datetime
 import pandas as pd
@@ -123,27 +124,78 @@ def load_sample_dataset(sample_id: str):
 
 @router.post("/upload")
 async def upload_dataset_file(file: UploadFile = File(...)):
-    """Uploads CSV or Excel (.xlsx, .xls) dataset."""
+    """Uploads CSV, Excel (.xlsx, .xls), or JSON (.json, .jsonl) dataset."""
     global ACTIVE_DATASET_ID
     filename = file.filename or "uploaded_dataset"
     content = await file.read()
 
     try:
-        if filename.endswith(".csv"):
+        lower_name = filename.lower()
+        if lower_name.endswith(".csv"):
             df = pd.read_csv(io.BytesIO(content))
             source_type = "csv"
-        elif filename.endswith((".xlsx", ".xls")):
+        elif lower_name.endswith((".xlsx", ".xls")):
             df = pd.read_excel(io.BytesIO(content))
             source_type = "excel"
+        elif lower_name.endswith((".json", ".jsonl")):
+            source_type = "json"
+            raw_text = content.decode("utf-8", errors="replace").strip()
+            # Try standard JSON parsing
+            try:
+                parsed_json = json.loads(raw_text)
+                if isinstance(parsed_json, list):
+                    df = pd.DataFrame(parsed_json)
+                elif isinstance(parsed_json, dict):
+                    # Check for standard wrapped lists (e.g., {"data": [...]}, {"records": [...]}, etc.)
+                    found_list = None
+                    for key in ["data", "records", "items", "rows", "results", "table"]:
+                        if key in parsed_json and isinstance(parsed_json[key], list) and len(parsed_json[key]) > 0:
+                            found_list = parsed_json[key]
+                            break
+                    if found_list is not None:
+                        df = pd.DataFrame(found_list)
+                    else:
+                        try:
+                            df = pd.DataFrame(parsed_json)
+                        except Exception:
+                            df = pd.json_normalize(parsed_json)
+                else:
+                    raise ValueError("JSON must contain an array of objects or key-value mappings.")
+            except (json.JSONDecodeError, ValueError):
+                # Try newline-delimited JSON Lines (.jsonl)
+                df = pd.read_json(io.StringIO(raw_text), lines=True)
         else:
-            # Attempt CSV parsing fallback
-            df = pd.read_csv(io.BytesIO(content))
-            source_type = "csv"
+            # Automatic detection fallback
+            raw_str = content.decode("utf-8", errors="ignore").strip()
+            if raw_str.startswith("{") or raw_str.startswith("["):
+                try:
+                    parsed = json.loads(raw_str)
+                    if isinstance(parsed, list):
+                        df = pd.DataFrame(parsed)
+                    else:
+                        df = pd.json_normalize(parsed)
+                    source_type = "json"
+                except Exception:
+                    df = pd.read_csv(io.BytesIO(content))
+                    source_type = "csv"
+            else:
+                df = pd.read_csv(io.BytesIO(content))
+                source_type = "csv"
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse dataset file: {str(e)}")
 
     if df.empty:
         raise HTTPException(status_code=400, detail="The uploaded file contains no data rows.")
+
+    # Ensure all column names are clean strings
+    df.columns = [str(c) for c in df.columns]
+
+    # Convert complex nested objects (dicts/lists) to JSON strings for DuckDB compatibility
+    for col in df.columns:
+        if df[col].dtype == object:
+            has_nested = df[col].apply(lambda x: isinstance(x, (dict, list))).any()
+            if has_nested:
+                df[col] = df[col].apply(lambda x: json.dumps(x, default=str) if isinstance(x, (dict, list)) else x)
 
     dataset_id = f"ds-{uuid.uuid4().hex[:8]}"
     DATASETS_CACHE[dataset_id] = df

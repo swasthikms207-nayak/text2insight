@@ -43,4 +43,17 @@ print(f"\n[Test 3] SQL Drop Attack Blocked: {not sql_attack.passed} (Message: {s
 pandas_attack = validate_pandas_safety("import os; os.system('echo hacked')")
 print(f"[Test 4] Pandas Import Attack Blocked: {not pandas_attack.passed} (Message: {pandas_attack.message})")
 
+# Test 5: JSON dataset upload parsing
+import io
+import asyncio
+from fastapi import UploadFile
+from app.routers.datasets import upload_dataset_file
+
+json_bytes = b'[{"customer": "Acme", "spend": 1200, "active": true}, {"customer": "Globex", "spend": 3400, "active": false}]'
+fake_upload = UploadFile(filename="test_customers.json", file=io.BytesIO(json_bytes))
+upload_res = asyncio.run(upload_dataset_file(fake_upload))
+print(f"[Test 5] JSON File Upload: Success ({upload_res['dataset'].row_count} rows, source: {upload_res['dataset'].source_type})")
+assert upload_res['dataset'].row_count == 2
+assert upload_res['dataset'].source_type == "json"
+
 print("\nALL BACKEND TESTS PASSED!")

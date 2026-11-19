@@ -88,7 +88,7 @@ export default function ImportSwitchPage({
           Import Your Dataset
         </h1>
         <p className="text-sm sm:text-base text-[#5F6368] max-w-2xl mx-auto">
-          Upload a CSV or Excel file, or connect to your PostgreSQL database. Once uploaded, you can ask natural language questions to generate instant tables, charts, and executive insights.
+          Upload a CSV, Excel, or JSON file, or connect to your PostgreSQL database. Once uploaded, you can ask natural language questions to generate instant tables, charts, and executive insights.
         </p>
       </div>
 
@@ -139,7 +139,7 @@ export default function ImportSwitchPage({
             }`}
           >
             <Upload className="w-4 h-4" />
-            Upload CSV / Excel
+            Upload CSV / Excel / JSON
           </button>
 
           <button
@@ -196,14 +196,14 @@ export default function ImportSwitchPage({
                     Click to browse or drag & drop your data file
                   </p>
                   <p className="text-xs text-[#5F6368]">
-                    Supported formats: <span className="font-semibold text-[#1A73E8]">.CSV</span>, <span className="font-semibold text-[#1A73E8]">.XLSX</span>, or <span className="font-semibold text-[#1A73E8]">.XLS</span> (up to 50MB)
+                    Supported formats: <span className="font-semibold text-[#1A73E8]">.CSV</span>, <span className="font-semibold text-[#1A73E8]">.XLSX</span>, <span className="font-semibold text-[#1A73E8]">.XLS</span>, or <span className="font-semibold text-[#1A73E8]">.JSON</span> (up to 50MB)
                   </p>
                 </div>
 
                 <input
                   id="main-file-input"
                   type="file"
-                  accept=".csv, .xlsx, .xls"
+                  accept=".csv, .xlsx, .xls, .json, .jsonl"
                   className="hidden"
                   onChange={handleFileChange}
                 />

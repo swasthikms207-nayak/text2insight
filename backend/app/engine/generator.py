@@ -99,6 +99,15 @@ Remember:
 """
 
 
+from dotenv import load_dotenv
+
+# Load server environment variables
+load_dotenv()
+
+BACKEND_DEFAULT_GROQ_KEY = os.getenv("GROQ_API_KEY", "")
+BACKEND_DEFAULT_GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")
+
+
 def generate_with_gemini(
     question: str,
     df: pd.DataFrame,
@@ -115,14 +124,29 @@ def generate_with_gemini(
 
     try:
         client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=chosen_model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                response_mime_type="application/json"
+        try:
+            response = client.models.generate_content(
+                model=chosen_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    response_mime_type="application/json"
+                )
             )
-        )
+        except Exception as inner_e:
+            # If primary model is experiencing high demand (503), automatically fall back to gemini-3.5-flash-lite
+            if "503" in str(inner_e) and chosen_model != "gemini-3.5-flash-lite":
+                chosen_model = "gemini-3.5-flash-lite"
+                response = client.models.generate_content(
+                    model=chosen_model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=SYSTEM_PROMPT,
+                        response_mime_type="application/json"
+                    )
+                )
+            else:
+                raise
         return parse_llm_json_response(response.text, "Google Gemini", chosen_model, mode)
     except Exception as e:
         raise RuntimeError(f"Google Gemini Error ({chosen_model}): {str(e)}")
@@ -241,36 +265,38 @@ def generate_code_and_reasoning(
     question: str,
     df: pd.DataFrame,
     mode: str = "auto",
-    provider: str = "gemini",
+    provider: str = "groq",
     api_key: Optional[str] = None,
     model_name: Optional[str] = None,
     base_url: Optional[str] = None
 ) -> Tuple[str, str, str]:
     """Master entry point for NL -> Code generation across LLM providers (Gemini, Groq, and Local Qwen Ollama)."""
-    gemini_key = api_key or os.getenv("GEMINI_API_KEY")
-    groq_key = api_key or os.getenv("GROQ_API_KEY")
+    selected_provider = (provider or "groq").lower().strip()
+    gemini_key = api_key or os.getenv("GEMINI_API_KEY") or BACKEND_DEFAULT_GEMINI_KEY
+    groq_key = api_key or os.getenv("GROQ_API_KEY") or BACKEND_DEFAULT_GROQ_KEY
 
     # 1. Google Gemini
-    if provider == "gemini":
+    if selected_provider == "gemini":
         if not gemini_key:
             raise RuntimeError("Google Gemini API Key is required. Please configure it in LLM Engine Settings.")
         return generate_with_gemini(question, df, mode, gemini_key, model_name)
 
-    # 2. Groq LPU
-    if provider in ["groq", "openai"]:
+    # 2. Groq LPU (Default)
+    if selected_provider in ["groq", "openai", "default"]:
         key = groq_key or api_key
         if not key:
             raise RuntimeError("Groq API Key (gsk_...) is required. Please configure it in LLM Engine Settings.")
         return generate_with_groq(question, df, mode, key, model_name)
 
     # 3. Local Qwen (Ollama / QLoRA)
-    if provider == "local_ollama":
+    if selected_provider == "local_ollama":
         return generate_with_local_ollama(question, df, mode, base_url, model_name)
 
-    if provider == "qwen":
+    if selected_provider == "qwen":
         raise RuntimeError("Qwen Cloud has been removed. Please select Groq LPU or Local Qwen (Ollama).")
 
-    if provider in ["smart-local", "builtin", "local"]:
-        raise RuntimeError("The built-in rule engine query generation has been removed. Please configure an LLM provider (Gemini, Groq, or Local Qwen) in LLM Engine Settings.")
+    if selected_provider in ["smart-local", "builtin", "local"]:
+        # Seamlessly fallback to pre-configured Groq LPU
+        return generate_with_groq(question, df, mode, groq_key, model_name)
 
-    raise RuntimeError(f"Unknown or unconfigured LLM provider '{provider}'. Please select Gemini, Groq, or Local Qwen (Ollama) in LLM Engine Settings.")
+    raise RuntimeError(f"Unknown LLM provider '{provider}'. Please select Groq LPU, Gemini, or Local Qwen (Ollama).")

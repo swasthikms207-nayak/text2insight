@@ -67,15 +67,12 @@ export default function ApiKeyModal({
 
   const handleSave = (e) => {
     e.preventDefault();
-    const isLocal = provider === 'local_ollama';
-    const hasKeyOrLocal = isLocal || !!apiKey.trim();
-    
     onSaveConfig({
       provider: provider,
-      apiKey: isLocal ? '' : apiKey.trim(),
+      apiKey: apiKey.trim(),
       baseUrl: baseUrl.trim() || 'http://localhost:11434/v1',
       modelName: modelName.trim() || getDefaultModel(provider),
-      hasKey: hasKeyOrLocal
+      hasKey: true
     });
     onClose();
   };
@@ -119,12 +116,12 @@ export default function ApiKeyModal({
         <form onSubmit={handleSave} className="p-6 space-y-4 overflow-y-auto flex-1">
           
           {/* LLM Engine Notice Banner */}
-          <div className="p-3 bg-[#F8FAFD] border border-[#D2E3FC] rounded-xl flex items-start gap-2.5">
-            <Cpu className="w-4 h-4 text-[#1A73E8] shrink-0 mt-0.5" />
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <div className="text-xs text-[#1E293B]">
-              <span className="font-semibold text-[#1A73E8]">LLM Engine Required:</span>
-              <p className="text-[#5F6368] mt-0.5 leading-relaxed text-[11px]">
-                Natural language query generation requires an active LLM provider. Select Google Gemini, Groq LPU, or Local Qwen (Ollama) below.
+              <span className="font-semibold text-emerald-800">Backend API Keys Active:</span>
+              <p className="text-emerald-700 mt-0.5 leading-relaxed text-[11px]">
+                Groq LPU and Google Gemini are pre-configured in the backend. You do not need to enter any API keys to start querying.
               </p>
             </div>
           </div>
@@ -298,16 +295,24 @@ export default function ApiKeyModal({
               
               {/* API Key Input */}
               <div>
-                <label className="block text-xs font-semibold text-[#1E293B] mb-1">
-                  {provider === 'gemini' ? 'Google Gemini API Key' : 'Groq API Key'}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-[#1E293B]">
+                    {provider === 'gemini' ? 'Google Gemini API Key' : 'Groq API Key'}
+                  </label>
+                  <span className="text-[10px] text-emerald-700 font-medium bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                    Pre-configured in backend (Active)
+                  </span>
+                </div>
                 <input
                   type="password"
                   value={apiKey}
                   onChange={(e) => handleApiKeyChange(e.target.value)}
                   className="w-full px-3 py-2 border border-[#CBD5E1] rounded-lg text-xs font-mono focus:outline-hidden focus:border-[#1A73E8] focus:ring-1 focus:ring-[#1A73E8]"
-                  placeholder={provider === 'gemini' ? 'AIzaSy...' : 'gsk_...'}
+                  placeholder="Using server pre-configured key (optional override)"
                 />
+                <p className="text-[10px] text-[#5F6368] mt-1">
+                  Leave blank to use the backend's pre-configured key, or enter your own to override.
+                </p>
               </div>
 
               {/* Model Name Input & Options */}

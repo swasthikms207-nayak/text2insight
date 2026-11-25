@@ -39,8 +39,8 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (parsed.provider === 'smart-local' || parsed.provider === 'qwen') {
           parsed.provider = 'groq';
-          parsed.hasKey = false;
         }
+        parsed.hasKey = true;
         return parsed;
       }
     } catch (e) {
@@ -51,7 +51,7 @@ export default function App() {
       apiKey: '',
       baseUrl: 'http://localhost:11434/v1',
       modelName: 'openai/gpt-oss-120b',
-      hasKey: false
+      hasKey: true
     };
   });
 
@@ -96,12 +96,6 @@ export default function App() {
   ) => {
     if (!datasetId || !qText.trim()) return;
 
-    if (!llmConfig.hasKey && llmConfig.provider !== 'local_ollama') {
-      setQueryError("No LLM provider configured. The built-in rule engine has been removed. Please click 'No LLM Configured' in the top right to configure Gemini, Groq, or Local Qwen (Ollama).");
-      setIsKeyModalOpen(true);
-      return;
-    }
-
     setLoading(true);
     setQueryError(null);
 
@@ -110,7 +104,7 @@ export default function App() {
         dataset_id: datasetId,
         question: qText.trim(),
         mode: targetMode,
-        provider: llmConfig.provider || 'gemini',
+        provider: llmConfig.provider || 'groq',
         api_key: llmConfig.apiKey || null,
         model_name: llmConfig.modelName || null,
         base_url: llmConfig.baseUrl || null

@@ -1,8 +1,10 @@
 import sys
 import os
+from dotenv import load_dotenv
 
-# Ensure backend root is in sys.path
+# Ensure backend root is in sys.path and load environment variables
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+load_dotenv()
 
 from app.routers.datasets import DATASETS_CACHE, METADATA_CACHE, ACTIVE_DATASET_ID, initialize_default_samples
 from app.routers.query import execute_natural_language_query
@@ -16,16 +18,18 @@ print(f"Backend initialized successfully!")
 print(f"Active dataset: {ACTIVE_DATASET_ID}")
 print(f"Available datasets: {list(DATASETS_CACHE.keys())}")
 
-# Test 1: Verify built-in rule engine is removed and LLM is required
-req_unconfigured = QueryRequest(
+# Test 1: Verify pre-configured backend Groq LLM generates code automatically without user key entry
+req_query = QueryRequest(
     dataset_id=ACTIVE_DATASET_ID,
-    question="Show churn rate and customer count by subscription plan",
-    mode="sql"
+    question="Show count by plan",
+    mode="sql",
+    provider="groq"
 )
-res_unconfigured = execute_natural_language_query(req_unconfigured)
-print(f"\n[Test 1] Unconfigured LLM Handled Gracefully: {not res_unconfigured.success}")
-print(f"Error Message: {res_unconfigured.error}")
-assert "LLM Engine Settings" in res_unconfigured.error or "required" in res_unconfigured.error
+res_query = execute_natural_language_query(req_query)
+print(f"\n[Test 1] Pre-configured Backend LLM Query Success: {res_query.success}")
+print(f"Generated SQL: {res_query.code}")
+assert res_query.success, f"Query generation failed: {res_query.error}"
+assert len(res_query.rows) > 0
 
 # Test 2: Direct SQL & Pandas execution engine test
 from app.engine.executor import execute_sql_duckdb, execute_pandas_safe

@@ -31,3 +31,16 @@ def get_local_ollama_status(base_url: str = Query(default="http://localhost:1143
             "message": f"Cannot connect to Ollama at {host}. Ensure Ollama is running (`ollama serve`). Details: {str(e)}",
             "models": []
         }
+
+
+@router.get("/server-config")
+def get_server_llm_config():
+    """Returns server-level pre-configured LLM provider availability."""
+    groq_ready = bool(os.getenv("GROQ_API_KEY", ""))
+    gemini_ready = bool(os.getenv("GEMINI_API_KEY", ""))
+    return {
+        "groq_configured": groq_ready,
+        "gemini_configured": gemini_ready,
+        "default_provider": "groq",
+        "default_model": "openai/gpt-oss-120b"
+    }

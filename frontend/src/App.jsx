@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import DatasetModal from './components/DatasetModal';
-import ApiKeyModal from './components/ApiKeyModal';
 import QuerySection from './components/QuerySection';
 import InsightCard from './components/InsightCard';
 import ChartView from './components/ChartView';
@@ -29,7 +28,6 @@ export default function App() {
 
   // Modals
   const [isDatasetModalOpen, setIsDatasetModalOpen] = useState(false);
-  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
 
   // API Key & Provider Settings
   const [apiKeyConfig, setApiKeyConfig] = useState(() => {
@@ -54,16 +52,6 @@ export default function App() {
       hasKey: true
     };
   });
-
-  // Save LLM Config
-  const handleSaveKeyConfig = (newConfig) => {
-    setApiKeyConfig(newConfig);
-    try {
-      localStorage.setItem('text2insight_llm_config', JSON.stringify(newConfig));
-    } catch (e) {
-      // Ignore
-    }
-  };
 
   // Initial Data Fetch
   useEffect(() => {
@@ -254,8 +242,6 @@ export default function App() {
         activeView={activeView}
         onOpenImport={() => setActiveView('import')}
         onOpenWorkspace={() => setActiveView('workspace')}
-        onOpenKeyModal={() => setIsKeyModalOpen(true)}
-        apiKeyConfig={apiKeyConfig}
         loading={loading}
       />
 
@@ -429,14 +415,6 @@ export default function App() {
         currentDataset={currentDataset}
         onUploadFile={handleUploadFile}
         onConnectPostgres={handleConnectPostgres}
-      />
-
-      {/* LLM / API Key Configuration Modal */}
-      <ApiKeyModal
-        isOpen={isKeyModalOpen}
-        onClose={() => setIsKeyModalOpen(false)}
-        apiKeyConfig={apiKeyConfig}
-        onSaveConfig={handleSaveKeyConfig}
       />
 
       {/* Footer */}

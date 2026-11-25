@@ -160,6 +160,20 @@ def execute_natural_language_query(req: QueryRequest):
     )
 
 
+@router.post("/validate-prompt")
+def validate_prompt_only(req: QueryRequest):
+    """Explicitly checks all 10 prompt and safety rules before running any query."""
+    df = DATASETS_CACHE.get(req.dataset_id)
+    check = validate_user_prompt(req.question, df)
+    return {
+        "is_valid": check.is_valid,
+        "rule_violated": check.rule_violated,
+        "message": check.message,
+        "clarification": check.clarification,
+        "sanitized_prompt": check.sanitized_prompt
+    }
+
+
 @router.post("/run-custom", response_model=QueryResponse)
 def run_custom_user_code(req: CustomCodeRequest):
     """Executes user-edited SQL or Pandas code with the same AST and sandbox safety constraints."""

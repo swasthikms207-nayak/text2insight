@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Sparkles, Code2, Play, Terminal, HelpCircle, ArrowRight } from 'lucide-react';
+import { Search, Sparkles, Code2, Play, Terminal, HelpCircle, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export default function QuerySection({
   question,
@@ -118,6 +118,17 @@ export default function QuerySection({
               </>
             )}
           </button>
+        </div>
+
+        {/* Prompt Rule Protection Indicator & Char Count */}
+        <div className="flex items-center justify-between text-[11px] text-[#5F6368] px-1 pt-0.5">
+          <div className="flex items-center gap-1.5 text-[#1557B0]">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#1A73E8]" />
+            <span className="font-medium">All 10 prompt & safety rules verified before running</span>
+          </div>
+          <span className={`text-[10px] font-mono ${question.length > 500 ? 'text-red-600 font-bold' : 'text-[#94A3B8]'}`}>
+            {question.length}/500 chars
+          </span>
         </div>
 
         {/* Suggested Starter Chips */}

@@ -7,6 +7,7 @@ import ChartView from './components/ChartView';
 import DataTable from './components/DataTable';
 import CodeInspector from './components/CodeInspector';
 import ImportSwitchPage from './components/ImportSwitchPage';
+import { validatePromptRules } from './utils/promptValidator';
 import {
   Sparkles, Database, AlertCircle, History, RotateCcw,
   BarChart3, Table as TableIcon, Code2, ShieldAlert,
@@ -84,6 +85,15 @@ export default function App() {
   ) => {
     if (!datasetId || !qText.trim()) return;
 
+    // Rule Check BEFORE running any prompt: validate client-side first for instant feedback
+    const ruleCheck = validatePromptRules(qText, currentDataset);
+    if (!ruleCheck.isValid) {
+      setQueryError(ruleCheck.message);
+      setQueryResult(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setQueryError(null);
 
@@ -112,7 +122,7 @@ export default function App() {
 
       if (!data.success) {
         setQueryError(data.error || data.safety?.message || 'Query execution failed.');
-        setQueryResult(data);
+        setQueryResult(null);
       } else {
         setQueryResult(data);
         // Add to history if unique
@@ -123,6 +133,7 @@ export default function App() {
       }
     } catch (err) {
       setQueryError(err.message || 'An unexpected error occurred while processing your query.');
+      setQueryResult(null);
     } finally {
       setLoading(false);
     }
@@ -312,13 +323,15 @@ export default function App() {
               currentDataset={currentDataset}
             />
 
-            {/* Error Banner */}
+            {/* Prompt Rule Validation / Error Banner */}
             {queryError && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-700 flex items-start gap-3 shadow-2xs">
-                <ShieldAlert className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 flex items-start gap-3 shadow-2xs animate-in fade-in duration-200">
+                <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="font-bold">Query / Sandbox Notice</p>
-                  <p>{queryError}</p>
+                  <p className="font-bold text-amber-950 flex items-center gap-1.5">
+                    <span>Prompt Rule Validation Notice</span>
+                  </p>
+                  <p className="leading-relaxed text-amber-900">{queryError}</p>
                 </div>
               </div>
             )}

@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from ..models import QueryRequest, QueryResponse, CustomCodeRequest, SafetyResult
 from .datasets import DATASETS_CACHE, METADATA_CACHE, POSTGRES_CONFIGS
 from ..engine.generator import generate_code_and_reasoning
-from ..engine.safety import validate_sql_safety, validate_pandas_safety
+from ..engine.safety import validate_sql_safety, validate_pandas_safety, validate_user_prompt
 from ..engine.executor import (
     execute_sql_duckdb,
     execute_sql_postgres,
@@ -23,10 +23,39 @@ def execute_natural_language_query(req: QueryRequest):
     df = DATASETS_CACHE[req.dataset_id]
     meta = METADATA_CACHE[req.dataset_id]
 
+    # Rule Validation: Detect invalid user prompts before sending to LLM
+    prompt_check = validate_user_prompt(req.question, df)
+    if not prompt_check.is_valid:
+        error_msg = prompt_check.clarification if prompt_check.clarification else prompt_check.message
+        return QueryResponse(
+            success=False,
+            question=req.question,
+            code="",
+            code_type="sql" if req.mode != "pandas" else "pandas",
+            reasoning=f"Prompt rejected ({prompt_check.rule_violated}): {prompt_check.message}",
+            columns=[],
+            rows=[],
+            total_rows=0,
+            execution_time_ms=0.0,
+            safety=SafetyResult(
+                passed=False,
+                message=prompt_check.message,
+                sanitized_code="",
+                rules_applied=[f"Rule: {prompt_check.rule_violated}"],
+                risk_level="medium" if prompt_check.clarification else "blocked"
+            ),
+            chart=generate_chart_spec(None, req.question),
+            insight=generate_insights(None, req.question),
+            error=error_msg
+        )
+
+    # Use sanitized prompt for generation
+    sanitized_question = prompt_check.sanitized_prompt
+
     # Generate Code using chosen provider / smart fallback
     try:
         code, code_type, reasoning = generate_code_and_reasoning(
-            question=req.question,
+            question=sanitized_question,
             df=df,
             mode=req.mode,
             provider=req.provider,

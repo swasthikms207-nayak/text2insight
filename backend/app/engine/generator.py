@@ -102,7 +102,7 @@ Remember:
 from dotenv import load_dotenv
 
 # Load server environment variables
-load_dotenv()
+load_dotenv(override=True)
 
 BACKEND_DEFAULT_GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 BACKEND_DEFAULT_GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")
@@ -113,13 +113,13 @@ def generate_with_gemini(
     df: pd.DataFrame,
     mode: str,
     api_key: str,
-    model_name: Optional[str] = "gemini-3.8-flash"
+    model_name: Optional[str] = "gemini-4-hydrogen"
 ) -> Tuple[str, str, str]:
-    """Generates SQL or Pandas code using Google Gemini API."""
+    """Generates SQL or Pandas code using Google Gemini API (gemini-4-hydrogen with fallback)."""
     from google import genai
     from google.genai import types
 
-    chosen_model = model_name or "gemini-3.8-flash"
+    chosen_model = model_name or "gemini-4-hydrogen"
     prompt = _build_schema_prompt(df, question, mode)
 
     try:
@@ -134,19 +134,27 @@ def generate_with_gemini(
                 )
             )
         except Exception as inner_e:
-            # If primary model is experiencing high demand (503), automatically fall back to gemini-3.5-flash-lite
-            if "503" in str(inner_e) and chosen_model != "gemini-3.5-flash-lite":
-                chosen_model = "gemini-3.5-flash-lite"
-                response = client.models.generate_content(
-                    model=chosen_model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_PROMPT,
-                        response_mime_type="application/json"
+            # Fallback models if primary (e.g. gemini-4-hydrogen) encounters 404, 503, or rate limits
+            fallback_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash-lite"]
+            last_err = inner_e
+            for alt_model in fallback_models:
+                if alt_model == chosen_model:
+                    continue
+                try:
+                    chosen_model = alt_model
+                    response = client.models.generate_content(
+                        model=chosen_model,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction=SYSTEM_PROMPT,
+                            response_mime_type="application/json"
+                        )
                     )
-                )
+                    break
+                except Exception as alt_err:
+                    last_err = alt_err
             else:
-                raise
+                raise last_err
         return parse_llm_json_response(response.text, "Google Gemini", chosen_model, mode)
     except Exception as e:
         raise RuntimeError(f"Google Gemini Error ({chosen_model}): {str(e)}")
@@ -270,33 +278,84 @@ def generate_code_and_reasoning(
     model_name: Optional[str] = None,
     base_url: Optional[str] = None
 ) -> Tuple[str, str, str]:
-    """Master entry point for NL -> Code generation across LLM providers (Gemini, Groq, and Local Qwen Ollama)."""
-    selected_provider = (provider or "groq").lower().strip()
-    gemini_key = api_key or os.getenv("GEMINI_API_KEY") or BACKEND_DEFAULT_GEMINI_KEY
-    groq_key = api_key or os.getenv("GROQ_API_KEY") or BACKEND_DEFAULT_GROQ_KEY
+    """
+    Master entry point for NL -> Code generation with prioritized multi-API fallback:
+    Priority 1: Groq LPU (Ultra-low latency, openai/gpt-oss-120b)
+    Priority 2: Google Gemini (gemini-4-hydrogen, with smart fallback to gemini-2.5/2.0-flash)
+    Priority 3: Local Ollama (if configured/available)
+    If one fails, it automatically calls the next.
+    """
+    load_dotenv(override=True)
+    groq_key = (api_key if provider == "groq" else None) or os.getenv("GROQ_API_KEY") or BACKEND_DEFAULT_GROQ_KEY
+    gemini_key = (api_key if provider == "gemini" else None) or os.getenv("GEMINI_API_KEY") or BACKEND_DEFAULT_GEMINI_KEY
 
-    # 1. Google Gemini
-    if selected_provider == "gemini":
-        if not gemini_key:
-            raise RuntimeError("Google Gemini API Key is required. Please configure it in LLM Engine Settings.")
-        return generate_with_gemini(question, df, mode, gemini_key, model_name)
+    # Build sequence of providers based on priority:
+    # Default: 1. Groq -> 2. Gemini hydrogen4 -> 3. Local Ollama
+    if provider == "local_ollama":
+        provider_chain = ["local_ollama", "groq", "gemini"]
+    elif provider == "gemini":
+        provider_chain = ["gemini", "groq", "local_ollama"]
+    else:
+        provider_chain = ["groq", "gemini", "local_ollama"]
 
-    # 2. Groq LPU (Default)
-    if selected_provider in ["groq", "openai", "default"]:
-        key = groq_key or api_key
-        if not key:
-            raise RuntimeError("Groq API Key (gsk_...) is required. Please configure it in LLM Engine Settings.")
-        return generate_with_groq(question, df, mode, key, model_name)
+    errors = []
 
-    # 3. Local Qwen (Ollama / QLoRA)
-    if selected_provider == "local_ollama":
-        return generate_with_local_ollama(question, df, mode, base_url, model_name)
+    for prov in provider_chain:
+        if prov == "groq":
+            key = groq_key or api_key
+            if not key:
+                errors.append("Groq: No API key available")
+                continue
+            try:
+                code, code_type, reasoning = generate_with_groq(
+                    question=question,
+                    df=df,
+                    mode=mode,
+                    api_key=key,
+                    model_name=model_name if provider == "groq" else "openai/gpt-oss-120b"
+                )
+                if errors:
+                    reasoning = f"{reasoning} [Fallback succeeded after: {'; '.join(errors)}]"
+                return code, code_type, reasoning
+            except Exception as e:
+                errors.append(f"Groq failed: {str(e)}")
 
-    if selected_provider == "qwen":
-        raise RuntimeError("Qwen Cloud has been removed. Please select Groq LPU or Local Qwen (Ollama).")
+        elif prov == "gemini":
+            key = gemini_key or api_key
+            if not key:
+                errors.append("Gemini: No API key available")
+                continue
+            try:
+                target_model = model_name if (provider == "gemini" and model_name) else "gemini-4-hydrogen"
+                code, code_type, reasoning = generate_with_gemini(
+                    question=question,
+                    df=df,
+                    mode=mode,
+                    api_key=key,
+                    model_name=target_model
+                )
+                if errors:
+                    reasoning = f"{reasoning} [Auto-fallback: {'; '.join(errors)}]"
+                return code, code_type, reasoning
+            except Exception as e:
+                errors.append(f"Gemini failed: {str(e)}")
 
-    if selected_provider in ["smart-local", "builtin", "local"]:
-        # Seamlessly fallback to pre-configured Groq LPU
-        return generate_with_groq(question, df, mode, groq_key, model_name)
+        elif prov == "local_ollama":
+            if base_url or provider == "local_ollama":
+                try:
+                    code, code_type, reasoning = generate_with_local_ollama(
+                        question=question,
+                        df=df,
+                        mode=mode,
+                        base_url=base_url,
+                        model_name=model_name or "text2insight-qwen"
+                    )
+                    if errors:
+                        reasoning = f"{reasoning} [Auto-fallback to Local Ollama after: {'; '.join(errors)}]"
+                    return code, code_type, reasoning
+                except Exception as e:
+                    errors.append(f"Local Ollama failed: {str(e)}")
 
-    raise RuntimeError(f"Unknown LLM provider '{provider}'. Please select Groq LPU, Gemini, or Local Qwen (Ollama).")
+    # If all providers failed, raise clear combined error
+    raise RuntimeError(f"All LLM generation attempts failed:\n" + "\n".join(f"- {err}" for err in errors))
+

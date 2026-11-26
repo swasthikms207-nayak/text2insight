@@ -143,4 +143,18 @@ assert not invalid_res.success
 assert "Gibberish" in invalid_res.reasoning
 print(f"Invalid Endpoint Query Handled Cleanly: success={invalid_res.success}, error='{invalid_res.error}'")
 
-print("\nALL 10 INVALID PROMPT RULES AND SAFETY TESTS PASSED PERFECTLY!")
+# Test Fallback Chain: If Groq fails, it should call Gemini
+print("\n--- Testing Multi-API Prioritization Fallback Chain ---")
+from app.engine.generator import generate_code_and_reasoning
+fallback_code, fallback_type, fallback_reasoning = generate_code_and_reasoning(
+    question="Show count by plan",
+    df=df,
+    mode="sql",
+    provider="groq",
+    api_key="gsk_invalid_test_key_triggering_fallback"
+)
+print(f"Prioritized Fallback Chain Success: {fallback_reasoning}")
+assert "Gemini" in fallback_reasoning or "Auto-fallback" in fallback_reasoning
+assert len(fallback_code) > 0
+
+print("\nALL 10 INVALID PROMPT RULES AND MULTI-API FALLBACK TESTS PASSED PERFECTLY!")

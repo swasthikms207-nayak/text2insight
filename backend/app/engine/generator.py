@@ -135,7 +135,7 @@ def generate_with_gemini(
             )
         except Exception as inner_e:
             # Fallback models if primary (e.g. gemini-4-hydrogen) encounters 404, 503, or rate limits
-            fallback_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash-lite"]
+            fallback_models = ["gemini-2.5-flash", "gemini-3.5-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash"]
             last_err = inner_e
             for alt_model in fallback_models:
                 if alt_model == chosen_model:

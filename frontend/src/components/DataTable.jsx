@@ -1,11 +1,62 @@
-import React, { useState, useMemo } from 'react';
-import { Table as TableIcon, Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import {
+  Table as TableIcon, Download, Search, ChevronLeft, ChevronRight,
+  ArrowUpDown, ArrowUp, ArrowDown, Columns3, Check, RotateCcw
+} from 'lucide-react';
 
 export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  // Column visibility state (all columns selected by default)
+  const allColNames = useMemo(() => columns.map((c) => c.name), [columns]);
+  const [visibleColumns, setVisibleColumns] = useState(allColNames);
+  const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Sync visible columns when new query columns arrive
+  useEffect(() => {
+    setVisibleColumns(columns.map((c) => c.name));
+  }, [columns]);
+
+  // Close column dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsColumnDropdownOpen(false);
+      }
+    };
+    if (isColumnDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isColumnDropdownOpen]);
+
+  // Toggle single column visibility (keep at least 1 column visible)
+  const toggleColumn = (colName) => {
+    setVisibleColumns((prev) => {
+      if (prev.includes(colName)) {
+        if (prev.length <= 1) return prev;
+        return prev.filter((c) => c !== colName);
+      } else {
+        return [...prev, colName];
+      }
+    });
+  };
+
+  // Select all columns
+  const selectAllColumns = () => {
+    setVisibleColumns(allColNames);
+  };
+
+  // Filter columns to display based on active toggle
+  const displayedColumns = useMemo(() => {
+    return columns.filter((c) => visibleColumns.includes(c.name));
+  }, [columns, visibleColumns]);
 
   // Handle sorting
   const handleSort = (colKey) => {
@@ -58,12 +109,13 @@ export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
     return processedRows.slice(start, start + pageSize);
   }, [processedRows, currentPage, pageSize]);
 
-  // Export to CSV
+  // Export to CSV (exports currently displayed columns)
   const handleExportCsv = () => {
     if (!rows.length) return;
-    const header = columns.map((c) => `"${c.name}"`).join(',');
+    const exportCols = displayedColumns.length > 0 ? displayedColumns : columns;
+    const header = exportCols.map((c) => `"${c.name}"`).join(',');
     const body = rows
-      .map((r) => columns.map((c) => `"${r[c.name] ?? ''}"`).join(','))
+      .map((r) => exportCols.map((c) => `"${r[c.name] ?? ''}"`).join(','))
       .join('\n');
     const csvContent = `${header}\n${body}`;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -93,6 +145,9 @@ export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
           <span className="text-xs px-2 py-0.5 rounded-full bg-[#E8F0FE] text-[#1A73E8] font-semibold border border-[#D2E3FC]">
             {totalRows} records
           </span>
+          <span className="text-[11px] text-[#5F6368] hidden md:inline">
+            • {displayedColumns.length} of {columns.length} columns visible
+          </span>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -107,15 +162,85 @@ export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
                 setCurrentPage(1);
               }}
               placeholder="Search in table..."
-              className="pl-8 pr-3 py-1.5 border border-[#CBD5E1] rounded-lg text-xs focus:outline-hidden focus:border-[#1A73E8] w-40 sm:w-56 bg-white"
+              className="pl-8 pr-3 py-1.5 border border-[#CBD5E1] rounded-lg text-xs focus:outline-hidden focus:border-[#1A73E8] w-36 sm:w-52 bg-white"
             />
+          </div>
+
+          {/* Column Toggle Selector */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsColumnDropdownOpen((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer border ${
+                isColumnDropdownOpen
+                  ? 'border-[#1A73E8] bg-[#E8F0FE] text-[#1A73E8]'
+                  : 'bg-white border-[#CBD5E1] hover:border-[#1A73E8] hover:text-[#1A73E8] text-[#1E293B]'
+              }`}
+              title="Select which columns to view"
+            >
+              <Columns3 className="w-3.5 h-3.5" />
+              <span>Columns</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#E8F0FE] text-[#1A73E8] font-bold border border-[#D2E3FC]">
+                {displayedColumns.length}/{columns.length}
+              </span>
+            </button>
+
+            {/* Dropdown Menu */}
+            {isColumnDropdownOpen && (
+              <div className="absolute right-0 mt-1.5 w-60 bg-white rounded-xl border border-[#D2E3FC] shadow-lg z-30 p-2 space-y-2 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between px-2 pt-1 pb-1 border-b border-[#E2E8F0] text-xs">
+                  <span className="font-bold text-[#1E293B]">Toggle Columns</span>
+                  <button
+                    type="button"
+                    onClick={selectAllColumns}
+                    className="text-[11px] font-semibold text-[#1A73E8] hover:text-[#1557B0] hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Show All</span>
+                  </button>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto space-y-1 px-1">
+                  {columns.map((col) => {
+                    const isVisible = visibleColumns.includes(col.name);
+                    return (
+                      <div
+                        key={col.name}
+                        onClick={() => toggleColumn(col.name)}
+                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer select-none transition-colors ${
+                          isVisible
+                            ? 'bg-[#F8FAFD] text-[#1E293B] hover:bg-[#E8F0FE]/70'
+                            : 'text-[#94A3B8] hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate pr-2">
+                          <div
+                            className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${
+                              isVisible
+                                ? 'bg-[#1A73E8] border-[#1A73E8] text-white'
+                                : 'border-[#CBD5E1] bg-white'
+                            }`}
+                          >
+                            {isVisible && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                          <span className="truncate font-medium">{col.name}</span>
+                        </div>
+                        <span className="text-[9px] uppercase px-1 py-0.2 rounded-sm bg-[#E2E8F0] text-[#64748B] font-mono shrink-0">
+                          {col.type}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Export Button */}
           <button
             onClick={handleExportCsv}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#CBD5E1] hover:border-[#1A73E8] hover:text-[#1A73E8] rounded-lg text-xs font-semibold text-[#1E293B] transition-colors cursor-pointer"
-            title="Download CSV"
+            title="Download CSV of displayed data"
           >
             <Download className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Export CSV</span>
@@ -129,7 +254,7 @@ export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
           <thead className="bg-[#F8FAFD] sticky top-0 z-10 border-b border-[#E2E8F0] text-[#5F6368]">
             <tr>
               <th className="py-2.5 px-4 font-semibold w-10 text-center">#</th>
-              {columns.map((col) => {
+              {displayedColumns.map((col) => {
                 const isSorted = sortConfig.key === col.name;
                 return (
                   <th
@@ -160,7 +285,7 @@ export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
           <tbody className="divide-y divide-[#E2E8F0] bg-white">
             {paginatedRows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + 1} className="py-8 text-center text-xs text-[#5F6368]">
+                <td colSpan={displayedColumns.length + 1} className="py-8 text-center text-xs text-[#5F6368]">
                   No matching records found.
                 </td>
               </tr>
@@ -170,7 +295,7 @@ export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
                   <td className="py-2 px-4 text-center text-[#94A3B8] font-mono text-[11px]">
                     {(currentPage - 1) * pageSize + rIdx + 1}
                   </td>
-                  {columns.map((col) => {
+                  {displayedColumns.map((col) => {
                     const val = row[col.name];
                     const isNum = typeof val === 'number';
                     return (

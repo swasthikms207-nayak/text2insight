@@ -1,13 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
-  Table as TableIcon, Download, Search, ChevronLeft, ChevronRight,
+  Table as TableIcon, Download, Search,
   ArrowUpDown, ArrowUp, ArrowDown, Columns3, Check, RotateCcw
 } from 'lucide-react';
 
 export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   // Column visibility state (all columns selected by default)
@@ -102,13 +100,6 @@ export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
     return data;
   }, [rows, searchTerm, sortConfig]);
 
-  // Pagination calculation
-  const totalPages = Math.ceil(processedRows.length / pageSize) || 1;
-  const paginatedRows = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return processedRows.slice(start, start + pageSize);
-  }, [processedRows, currentPage, pageSize]);
-
   // Export to CSV (exports currently displayed columns)
   const handleExportCsv = () => {
     if (!rows.length) return;
@@ -157,10 +148,7 @@ export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search in table..."
               className="pl-8 pr-3 py-1.5 border border-[#CBD5E1] rounded-lg text-xs focus:outline-hidden focus:border-[#1A73E8] w-36 sm:w-52 bg-white"
             />
@@ -248,19 +236,19 @@ export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
         </div>
       </div>
 
-      {/* Table Container */}
-      <div className="overflow-x-auto max-h-96">
+      {/* Scrollable Table Container with Sticky Header */}
+      <div className="overflow-auto max-h-[460px] relative scrollbar-thin">
         <table className="w-full text-left text-xs border-collapse">
-          <thead className="bg-[#F8FAFD] sticky top-0 z-10 border-b border-[#E2E8F0] text-[#5F6368]">
+          <thead className="bg-[#F8FAFD] sticky top-0 z-10 border-b border-[#E2E8F0] text-[#5F6368] shadow-2xs">
             <tr>
-              <th className="py-2.5 px-4 font-semibold w-10 text-center">#</th>
+              <th className="py-2.5 px-4 font-semibold w-12 text-center bg-[#F8FAFD]">#</th>
               {displayedColumns.map((col) => {
                 const isSorted = sortConfig.key === col.name;
                 return (
                   <th
                     key={col.name}
                     onClick={() => handleSort(col.name)}
-                    className="py-2.5 px-4 font-semibold cursor-pointer hover:bg-[#E8F0FE]/70 transition-colors select-none"
+                    className="py-2.5 px-4 font-semibold cursor-pointer hover:bg-[#E8F0FE]/70 transition-colors select-none bg-[#F8FAFD]"
                   >
                     <div className="flex items-center gap-1.5">
                       <span className="text-[#1E293B]">{col.name}</span>
@@ -283,17 +271,17 @@ export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E2E8F0] bg-white">
-            {paginatedRows.length === 0 ? (
+            {processedRows.length === 0 ? (
               <tr>
                 <td colSpan={displayedColumns.length + 1} className="py-8 text-center text-xs text-[#5F6368]">
                   No matching records found.
                 </td>
               </tr>
             ) : (
-              paginatedRows.map((row, rIdx) => (
+              processedRows.map((row, rIdx) => (
                 <tr key={rIdx} className="hover:bg-[#F8FAFD] transition-colors">
                   <td className="py-2 px-4 text-center text-[#94A3B8] font-mono text-[11px]">
-                    {(currentPage - 1) * pageSize + rIdx + 1}
+                    {rIdx + 1}
                   </td>
                   {displayedColumns.map((col) => {
                     const val = row[col.name];
@@ -318,47 +306,16 @@ export default function DataTable({ columns = [], rows = [], totalRows = 0 }) {
         </table>
       </div>
 
-      {/* Pagination Bar */}
-      <div className="px-5 py-3 border-t border-[#E2E8F0] flex flex-wrap items-center justify-between gap-3 bg-[#F8FAFD] text-xs text-[#5F6368]">
+      {/* Bottom Summary Bar */}
+      <div className="px-5 py-2.5 border-t border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFD] text-xs text-[#5F6368]">
         <div className="flex items-center gap-2">
-          <span>Rows per page:</span>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="border border-[#CBD5E1] rounded px-2 py-1 bg-white focus:outline-hidden"
-          >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-          <span className="hidden sm:inline">
-            Showing {(currentPage - 1) * pageSize + 1} to{' '}
-            {Math.min(currentPage * pageSize, processedRows.length)} of {processedRows.length}
+          <span>
+            Total: <strong className="text-[#1E293B] font-semibold">{processedRows.length}</strong> {processedRows.length === 1 ? 'record' : 'records'}
+            {searchTerm.trim() && ` (filtered from ${rows.length})`}
           </span>
         </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="p-1.5 rounded-lg border border-[#CBD5E1] bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="font-medium px-2">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="p-1.5 rounded-lg border border-[#CBD5E1] bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+        <div className="text-[11px] text-[#5F6368] font-medium">
+          Scrollable table view
         </div>
       </div>
 

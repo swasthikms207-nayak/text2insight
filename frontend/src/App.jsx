@@ -329,6 +329,7 @@ export default function App() {
                     columns={queryResult.columns}
                     rows={queryResult.rows}
                     totalRows={queryResult.total_rows}
+                    allDatasetColumns={currentDataset?.columns}
                   />
                 )}
 

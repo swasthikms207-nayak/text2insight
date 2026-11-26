@@ -140,6 +140,28 @@ def execute_natural_language_query(req: QueryRequest):
 
     # Convert results
     columns, rows, total_rows = df_to_json_result(res_df)
+
+    # Enrich rows with full dataset columns when query is row-level so toggling any column displays data
+    try:
+        if df is not None and not df.empty and rows:
+            common_cols = [c for c in res_df.columns if c in df.columns]
+            if common_cols and len(res_df.columns) < len(df.columns) and len(res_df) <= len(df):
+                from ..engine.executor import clean_for_json
+                key_col = next((c for c in common_cols if df[c].is_unique and res_df[c].is_unique), None)
+                if not key_col and len(common_cols) >= 1:
+                    key_col = common_cols[0]
+                if key_col:
+                    remaining_cols = [c for c in df.columns if c not in res_df.columns]
+                    lookup = df.set_index(key_col)[remaining_cols].to_dict(orient="index")
+                    for r in rows:
+                        k = r.get(key_col)
+                        if k in lookup:
+                            for extra_col, extra_val in lookup[k].items():
+                                if extra_col not in r:
+                                    r[extra_col] = clean_for_json(extra_val)
+    except Exception:
+        pass
+
     chart_spec = generate_chart_spec(res_df, req.question)
     insights = generate_insights(res_df, req.question)
 

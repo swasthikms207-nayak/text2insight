@@ -390,20 +390,6 @@ export default function App() {
         onConnectPostgres={handleConnectPostgres}
       />
 
-      {/* Footer */}
-      <footer className="mt-auto border-t border-[#E2E8F0] py-4 bg-white text-center text-xs text-[#5F6368]">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-[#1A73E8]">Text2Insight</span>
-            <span>• Monochromatic Blue Analytics Engine (#1A73E8)</span>
-          </div>
-          <div className="flex items-center gap-4 text-[11px]">
-            <span>FastAPI + DuckDB + Pandas Sandbox</span>
-            <span>React + Recharts Frontend</span>
-          </div>
-        </div>
-      </footer>
-
     </div>
   );
 }

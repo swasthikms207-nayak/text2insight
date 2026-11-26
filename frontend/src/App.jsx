@@ -10,8 +10,7 @@ import ImportSwitchPage from './components/ImportSwitchPage';
 import { validatePromptRules } from './utils/promptValidator';
 import {
   Sparkles, Database, AlertCircle, History, RotateCcw,
-  BarChart3, Table as TableIcon, Code2, ShieldAlert,
-  ArrowLeft, Upload
+  BarChart3, Table as TableIcon, Code2, ShieldAlert
 } from 'lucide-react';
 
 export default function App() {
@@ -272,45 +271,6 @@ export default function App() {
           /* "THE REST": NATURAL LANGUAGE ANALYTICS WORKSPACE */
           <div className="space-y-6 animate-in fade-in duration-300">
             
-            {/* Contextual Active Dataset Bar with Back/Switch Link */}
-            {currentDataset && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-white rounded-2xl border border-[#D2E3FC] shadow-2xs">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setActiveView('import')}
-                    className="p-1.5 px-2.5 rounded-lg border border-[#D2E3FC] bg-[#F8FAFD] hover:bg-[#E8F0FE] text-[#1A73E8] transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-                    title="Return to Import / Switch page"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>Import / Switch</span>
-                  </button>
-
-                  <div className="h-4 w-px bg-[#E2E8F0] hidden sm:block"></div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#5F6368]">Active:</span>
-                    <span className="text-xs font-bold text-[#1E293B]">{currentDataset.name}</span>
-                    <span className="text-[10px] font-semibold uppercase bg-[#E8F0FE] text-[#1A73E8] px-2 py-0.5 rounded-md">
-                      {currentDataset.source_type}
-                    </span>
-                    <span className="text-xs text-[#5F6368] hidden md:inline">
-                      • {currentDataset.row_count} rows • {currentDataset.columns?.length || currentDataset.column_count} cols
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setActiveView('import')}
-                    className="text-xs font-medium text-[#1A73E8] hover:text-[#1557B0] hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Upload or switch dataset</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Natural Language Prompt & Input Section */}
             <QuerySection
               question={question}
